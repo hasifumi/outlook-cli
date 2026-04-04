@@ -1,0 +1,19 @@
+[project]
+name = "outlook-cli"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "click",
+    "textual>=8.2.1",
+]
+
+[project.scripts]
+outlook = "outlook_cli.cli:cli"
+outlook-tui = "outlook_cli.tui:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["outlook_cli"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
