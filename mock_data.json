@@ -7,7 +7,10 @@
     {"id": "mock-005", "subject": "Re: プロジェクト進捗確認", "from": "sato@company.com", "from_name": "佐藤 次郎", "to": "you@company.com", "cc": "", "date": "2026-03-24T16:45:00", "unread": false, "has_attachments": false, "body": "進捗を共有します。フェーズ1は完了、フェーズ2は80%完了です。来週中に完了予定です。"}
   ],
   "sent": [
-    {"id": "mock-s01", "subject": "Re: 来週の定例会議について", "from": "you@company.com", "from_name": "自分", "to": "tanaka@company.com", "cc": "", "date": "2026-03-28T10:00:00", "unread": false, "body": "承知しました。第2会議室ですね。よろしくお願いします。"}
+    {"id": "mock-s01", "subject": "Re: 来週の定例会議について", "from": "you@company.com", "from_name": "自分", "to": "tanaka@company.com", "cc": "", "date": "2026-03-28T10:00:00", "unread": false, "body": "承知しました。第2会議室ですね。よろしくお願いします。"},
+    {"id": "mock-s02", "subject": "Q1レポート提出しました", "from": "you@company.com", "from_name": "自分", "to": "suzuki@company.com", "cc": "", "date": "2026-04-26T09:30:00", "unread": false, "body": "お世話になっております。Q1レポートを提出しました。ご確認よろしくお願いします。"},
+    {"id": "mock-s03", "subject": "Re: 承認依頼：経費精算", "from": "you@company.com", "from_name": "自分", "to": "yamada@company.com", "cc": "", "date": "2026-04-26T11:45:00", "unread": false, "body": "承認しました。お疲れ様です。"},
+    {"id": "mock-s04", "subject": "プロジェクトA 進捗報告", "from": "you@company.com", "from_name": "自分", "to": "manager@company.com", "cc": "sato@company.com", "date": "2026-04-26T14:00:00", "unread": false, "body": "本日の進捗を報告します。フェーズ2の実装が完了し、テスト工程に入りました。"}
   ],
   "drafts": [],
   "trash": [

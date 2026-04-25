@@ -47,3 +47,18 @@ class OutlookBase(ABC):
     def get_unread_count(self, folder: str) -> int:
         """フォルダの未読件数取得"""
         ...
+
+    @abstractmethod
+    def unread_count(self, folder: str = None) -> dict:
+        """未読件数集計（folder=Noneで全フォルダ）→ {"inbox": 2, "total": 2}"""
+        ...
+
+    @abstractmethod
+    def unread_summary(self, limit: int = 10, folder: str = "inbox") -> list:
+        """未読メールのサマリー取得 → [{"subject", "from", "from_name", "date", "preview"}, ...]"""
+        ...
+
+    @abstractmethod
+    def sent_today(self, date: str = None) -> list:
+        """当日の送信メール一覧 (date="YYYY-MM-DD", 省略時は今日) → [{"subject", "to", "date"}, ...]"""
+        ...

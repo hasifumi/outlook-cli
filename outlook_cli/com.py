@@ -106,6 +106,69 @@ class OutlookCOM(OutlookBase):
     def get_unread_count(self, folder: str) -> int:
         return self._get_folder(folder).UnReadItemCount
 
+    def unread_summary(self, limit: int = 10, folder: str = "inbox") -> list:
+        items = self._get_folder(folder).Items
+        items.Sort("[ReceivedTime]", True)
+        restricted = items.Restrict("[UnRead] = True")
+        result = []
+        for i, mail in enumerate(restricted):
+            if i >= limit:
+                break
+            try:
+                result.append({
+                    "subject":   mail.Subject,
+                    "from":      mail.SenderEmailAddress,
+                    "from_name": mail.SenderName,
+                    "date":      mail.ReceivedTime.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "preview":   mail.Body[:100],
+                })
+            except Exception:
+                continue
+        return result
+
+    def sent_today(self, date: str = None) -> list:
+        target = datetime.fromisoformat(date).date() if date else datetime.now().date()
+        date_str = target.strftime("%m/%d/%Y")
+        next_str = (target + timedelta(days=1)).strftime("%m/%d/%Y")
+        items = self._get_folder("sent").Items
+        restricted = items.Restrict(f"[SentOn] >= '{date_str}' AND [SentOn] < '{next_str}'")
+        result = []
+        for mail in restricted:
+            try:
+                result.append({
+                    "subject": mail.Subject,
+                    "to":      mail.To,
+                    "date":    mail.SentOn.strftime("%Y-%m-%dT%H:%M:%S"),
+                })
+            except Exception:
+                continue
+        return sorted(result, key=lambda m: m["date"], reverse=True)
+
+    def unread_count(self, folder: str = None) -> dict:
+        result = {}
+        if folder is None:
+            for f in ("inbox", "sent", "drafts", "trash"):
+                try:
+                    count = self.get_unread_count(f)
+                except Exception:
+                    count = 0
+                if count > 0 or f == "inbox":
+                    result[f] = count
+            for subfolder_name in self.list_subfolders():
+                try:
+                    count = self.get_unread_count(subfolder_name)
+                except Exception:
+                    count = 0
+                if count > 0:
+                    result[subfolder_name] = count
+        else:
+            try:
+                result[folder] = self.get_unread_count(folder)
+            except Exception:
+                result[folder] = 0
+        result["total"] = sum(v for k, v in result.items() if k != "total")
+        return result
+
     def get_contacts(self) -> list[dict]:
         contacts = []
         try:

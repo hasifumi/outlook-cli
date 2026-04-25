@@ -95,3 +95,40 @@ class OutlookMock(OutlookBase):
 
     def get_unread_count(self, folder: str) -> int:
         return sum(1 for m in self._get_folder_mails(folder) if m.get("unread"))
+
+    def unread_summary(self, limit: int = 10, folder: str = "inbox") -> list:
+        mails = sorted(
+            [m for m in self._get_folder_mails(folder) if m.get("unread")],
+            key=lambda m: m["date"], reverse=True,
+        )
+        return [
+            {
+                "subject":   m["subject"],
+                "from":      m["from"],
+                "from_name": m.get("from_name", ""),
+                "date":      m["date"],
+                "preview":   m.get("body", "")[:100],
+            }
+            for m in mails[:limit]
+        ]
+
+    def sent_today(self, date: str = None) -> list:
+        target = date or datetime.now().date().isoformat()
+        mails = [m for m in self._data.get("sent", []) if m["date"].startswith(target)]
+        return sorted(mails, key=lambda m: m["date"], reverse=True)
+
+    def unread_count(self, folder: str = None) -> dict:
+        result = {}
+        if folder is None:
+            for f in ("inbox", "sent", "drafts", "trash"):
+                count = self.get_unread_count(f)
+                if count > 0 or f == "inbox":
+                    result[f] = count
+            for subfolder in self._data.get("folders", {}):
+                count = self.get_unread_count(subfolder)
+                if count > 0:
+                    result[subfolder] = count
+        else:
+            result[folder] = self.get_unread_count(folder)
+        result["total"] = sum(v for k, v in result.items() if k != "total")
+        return result

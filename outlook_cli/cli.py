@@ -14,6 +14,14 @@ def get_client():
         return OutlookCOM()
 
 
+FOLDER_LABELS = {
+    "inbox":  "受信トレイ",
+    "sent":   "送信済み",
+    "drafts": "下書き",
+    "trash":  "ゴミ箱",
+}
+
+
 @click.group()
 def cli():
     """Outlook CLI ツール"""
@@ -92,6 +100,62 @@ def reply(mail_id, body):
     client = get_client()
     client.reply(mail_id=mail_id, body=body)
     click.echo("返信しました")
+
+
+@cli.command("unread-count")
+@click.option("--folder", default=None, help="フォルダ名（省略時は全フォルダ）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def unread_count(folder, json_output):
+    """未読件数表示"""
+    client = get_client()
+    result = client.unread_count(folder=folder)
+    if json_output:
+        click.echo(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    total = result.pop("total")
+    max_len = max((len(FOLDER_LABELS.get(k, k)) for k in result), default=0)
+    for key, count in result.items():
+        label = FOLDER_LABELS.get(key, key)
+        click.echo(f"{label:{max_len}}: {count:>3}件")
+    click.echo("---")
+    click.echo(f"{'合計':{max_len}}: {total:>3}件")
+
+
+@cli.command("unread-summary")
+@click.option("--folder", default="inbox", help="フォルダ名（省略時は受信トレイ）")
+@click.option("--limit", default=10, help="取得件数")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def unread_summary(folder, limit, json_output):
+    """未読メールサマリー表示"""
+    client = get_client()
+    mails = client.unread_summary(limit=limit, folder=folder)
+    if json_output:
+        click.echo(json.dumps(mails, ensure_ascii=False, indent=2))
+        return
+    if not mails:
+        click.echo("未読メールはありません")
+        return
+    for m in mails:
+        click.echo(f"[{m['date'][:16]}] {m['from']:<30}  {m['subject']}")
+        click.echo(f"  {m['preview']}")
+        click.echo()
+
+
+@cli.command("sent-today")
+@click.option("--date", default=None, help="YYYY-MM-DD（省略時は今日）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def sent_today(date, json_output):
+    """当日の送信メール一覧表示"""
+    client = get_client()
+    mails = client.sent_today(date=date)
+    if json_output:
+        click.echo(json.dumps(mails, ensure_ascii=False, indent=2))
+        return
+    if not mails:
+        click.echo("送信メールはありません")
+        return
+    for m in mails:
+        click.echo(f"[{m['date'][11:16]}] {m.get('to', ''):<40}  {m['subject']}")
 
 
 if __name__ == "__main__":
