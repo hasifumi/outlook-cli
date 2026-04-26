@@ -158,5 +158,25 @@ def sent_today(date, json_output):
         click.echo(f"[{m['date'][11:16]}] {m.get('to', ''):<40}  {m['subject']}")
 
 
+@cli.command("flagged")
+@click.option("--folder", default="inbox", help="フォルダ名")
+@click.option("--days", default=7, help="受信期間（日数）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def flagged(folder, days, json_output):
+    """重要フラグ／期限設定メールを検索"""
+    client = get_client()
+    mails = client.flagged_or_due(days=days, folder=folder)
+    if json_output:
+        click.echo(json.dumps(mails, ensure_ascii=False, indent=2))
+        return
+    if not mails:
+        click.echo("該当メールなし")
+        return
+    for m in mails:
+        flag_mark = "[F]" if m.get("flag_status") == 1 else "   "
+        due = f" [期限: {m['due_date']}]" if m.get("due_date") else ""
+        click.echo(f"{flag_mark} [{m['date'][:10]}] {m['from']:<30}  {m['subject']}{due}")
+
+
 if __name__ == "__main__":
     cli()

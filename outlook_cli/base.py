@@ -62,3 +62,8 @@ class OutlookBase(ABC):
     def sent_today(self, date: str = None) -> list:
         """当日の送信メール一覧 (date="YYYY-MM-DD", 省略時は今日) → [{"subject", "to", "date"}, ...]"""
         ...
+
+    @abstractmethod
+    def flagged_or_due(self, days: int = 7, folder: str = "inbox") -> list:
+        """重要フラグまたは期限設定のあるメール (days以内受信) → [{"id", "subject", "from", "date", "flag_status", "due_date"}, ...]"""
+        ...

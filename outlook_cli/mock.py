@@ -117,6 +117,26 @@ class OutlookMock(OutlookBase):
         mails = [m for m in self._data.get("sent", []) if m["date"].startswith(target)]
         return sorted(mails, key=lambda m: m["date"], reverse=True)
 
+    def flagged_or_due(self, days: int = 7, folder: str = "inbox") -> list:
+        cutoff = datetime.now() - timedelta(days=days)
+        result = []
+        for mail in self._get_folder_mails(folder):
+            if datetime.fromisoformat(mail["date"]) < cutoff:
+                continue
+            flag_status = mail.get("flag_status", 0)
+            due_date = mail.get("due_date")
+            if flag_status == 1 or due_date:
+                result.append({
+                    "id":          mail["id"],
+                    "subject":     mail["subject"],
+                    "from":        mail["from"],
+                    "from_name":   mail.get("from_name", ""),
+                    "date":        mail["date"],
+                    "flag_status": flag_status,
+                    "due_date":    due_date,
+                })
+        return sorted(result, key=lambda m: m["date"], reverse=True)
+
     def unread_count(self, folder: str = None) -> dict:
         result = {}
         if folder is None:

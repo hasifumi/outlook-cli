@@ -1,10 +1,10 @@
 {
   "inbox": [
-    {"id": "mock-001", "subject": "来週の定例会議について", "from": "tanaka@company.com", "from_name": "田中 一郎", "to": "you@company.com", "cc": "", "date": "2026-03-28T09:15:00", "unread": true, "has_attachments": false, "body": "お疲れ様です。来週月曜の定例会議ですが、場所が第2会議室に変更になりました。よろしくお願いします。"},
-    {"id": "mock-002", "subject": "Q1レポート提出のお願い", "from": "suzuki@company.com", "from_name": "鈴木 花子", "to": "you@company.com", "cc": "", "date": "2026-03-27T14:30:00", "unread": false, "has_attachments": true, "body": "お世話になっております。Q1レポートの提出期限は4月5日です。フォーマットは昨年と同じです。"},
-    {"id": "mock-003", "subject": "承認依頼：経費精算", "from": "yamada@company.com", "from_name": "山田 太郎", "to": "you@company.com", "cc": "", "date": "2026-03-26T11:00:00", "unread": true, "has_attachments": true, "body": "経費精算の承認をお願いします。金額は12,500円です。領収書を添付しています。"},
-    {"id": "mock-004", "subject": "システムメンテナンスのお知らせ", "from": "it-support@company.com", "from_name": "ITサポート", "to": "all@company.com", "cc": "", "date": "2026-03-25T08:00:00", "unread": false, "has_attachments": false, "body": "4月10日（土）22:00〜翌2:00にシステムメンテナンスを実施します。この間、社内システムはご利用いただけません。"},
-    {"id": "mock-005", "subject": "Re: プロジェクト進捗確認", "from": "sato@company.com", "from_name": "佐藤 次郎", "to": "you@company.com", "cc": "", "date": "2026-03-24T16:45:00", "unread": false, "has_attachments": false, "body": "進捗を共有します。フェーズ1は完了、フェーズ2は80%完了です。来週中に完了予定です。"}
+    {"id": "mock-001", "subject": "来週の定例会議について", "from": "tanaka@company.com", "from_name": "田中 一郎", "to": "you@company.com", "cc": "", "date": "2026-04-24T09:15:00", "unread": true, "has_attachments": false, "flag_status": 1, "due_date": null, "body": "お疲れ様です。来週月曜の定例会議ですが、場所が第2会議室に変更になりました。よろしくお願いします。"},
+    {"id": "mock-002", "subject": "Q1レポート提出のお願い", "from": "suzuki@company.com", "from_name": "鈴木 花子", "to": "you@company.com", "cc": "", "date": "2026-04-23T14:30:00", "unread": false, "has_attachments": true, "flag_status": 0, "due_date": "2026-04-30", "body": "お世話になっております。Q1レポートの提出期限は4月5日です。フォーマットは昨年と同じです。"},
+    {"id": "mock-003", "subject": "承認依頼：経費精算", "from": "yamada@company.com", "from_name": "山田 太郎", "to": "you@company.com", "cc": "", "date": "2026-04-22T11:00:00", "unread": true, "has_attachments": true, "flag_status": 1, "due_date": "2026-04-28", "body": "経費精算の承認をお願いします。金額は12,500円です。領収書を添付しています。"},
+    {"id": "mock-004", "subject": "システムメンテナンスのお知らせ", "from": "it-support@company.com", "from_name": "ITサポート", "to": "all@company.com", "cc": "", "date": "2026-04-20T08:00:00", "unread": false, "has_attachments": false, "flag_status": 0, "due_date": null, "body": "4月10日（土）22:00〜翌2:00にシステムメンテナンスを実施します。この間、社内システムはご利用いただけません。"},
+    {"id": "mock-005", "subject": "Re: プロジェクト進捗確認", "from": "sato@company.com", "from_name": "佐藤 次郎", "to": "you@company.com", "cc": "", "date": "2026-04-19T16:45:00", "unread": false, "has_attachments": false, "flag_status": 0, "due_date": null, "body": "進捗を共有します。フェーズ1は完了、フェーズ2は80%完了です。来週中に完了予定です。"}
   ],
   "sent": [
     {"id": "mock-s01", "subject": "Re: 来週の定例会議について", "from": "you@company.com", "from_name": "自分", "to": "tanaka@company.com", "cc": "", "date": "2026-03-28T10:00:00", "unread": false, "body": "承知しました。第2会議室ですね。よろしくお願いします。"},

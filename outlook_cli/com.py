@@ -144,6 +144,31 @@ class OutlookCOM(OutlookBase):
                 continue
         return sorted(result, key=lambda m: m["date"], reverse=True)
 
+    def flagged_or_due(self, days: int = 7, folder: str = "inbox") -> list:
+        cutoff = (datetime.now() - timedelta(days=days)).strftime("%m/%d/%Y")
+        items = self._get_folder(folder).Items
+        # FlagStatus=1 (フラグあり) OR TaskDueDate が設定済み の両方を拾うため日付フィルタのみ Restrict
+        restricted = items.Restrict(f"[ReceivedTime] >= '{cutoff}'")
+        result = []
+        for mail in restricted:
+            try:
+                flag = getattr(mail, "FlagStatus", 0)
+                due = getattr(mail, "TaskDueDate", None)
+                due_str = due.strftime("%Y-%m-%d") if due and due.year > 4000 is False and due.year < 4500 else None
+                if flag == 1 or due_str:
+                    result.append({
+                        "id":          mail.EntryID,
+                        "subject":     mail.Subject,
+                        "from":        mail.SenderEmailAddress,
+                        "from_name":   mail.SenderName,
+                        "date":        mail.ReceivedTime.strftime("%Y-%m-%dT%H:%M:%S"),
+                        "flag_status": flag,
+                        "due_date":    due_str,
+                    })
+            except Exception:
+                continue
+        return sorted(result, key=lambda m: m["date"], reverse=True)
+
     def unread_count(self, folder: str = None) -> dict:
         result = {}
         if folder is None:
