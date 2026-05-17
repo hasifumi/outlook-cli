@@ -1,0 +1,129 @@
+# outlook-cli
+
+Windows 11 + Outlook M365 をターミナルから操作する CLI / TUI ツール。
+Outlook の GUI を開かずにメール確認・送受信・カレンダー参照・空き時間検索ができる。
+
+## 動作環境
+
+| 項目 | 内容 |
+|------|------|
+| OS | Windows 11 |
+| Outlook | M365 Apps for Enterprise（クイック実行） |
+| Python | 3.11 以上 |
+| パッケージ管理 | [uv](https://docs.astral.sh/uv/) |
+
+## セットアップ
+
+```powershell
+# リポジトリのクローン
+git clone https://github.com/hasifumi/outlook-cli.git
+cd outlook-cli
+
+# 依存パッケージのインストール
+uv sync
+
+# win32com（会社PC用）
+uv add pywin32
+```
+
+### 環境切り替え
+
+```powershell
+# 自宅（JSON モック）
+$env:OUTLOOK_MOCK = 1
+
+# 会社PC（Outlook COM）— 環境変数を設定しなければ自動的に COM を使用
+Remove-Item Env:OUTLOOK_MOCK
+```
+
+## CLI コマンド
+
+```powershell
+# 共通プレフィックス
+.venv\Scripts\python.exe -m outlook_cli.cli <コマンド> [オプション]
+# または uv sync 後に
+outlook <コマンド> [オプション]
+```
+
+### メール操作
+
+| コマンド | 説明 | 主なオプション |
+|---|---|---|
+| `list` | メール一覧 | `--folder inbox/sent/drafts` `--limit 20` `--json-output` |
+| `search <keyword>` | メール検索 | `--days 7` `--from sender@example.com` `--json-output` |
+| `read <mail_id>` | 本文表示 | `--json-output` |
+| `send` | メール送信 | `--to` `--subject` `--body` |
+| `reply <mail_id>` | 返信 | `--body` |
+| `unread-count` | フォルダ別未読件数 | `--folder` `--json-output` |
+| `unread-summary` | 未読メール本文冒頭サマリー | `--folder` `--limit` `--json-output` |
+| `sent-today` | 当日の送信メール一覧 | `--date YYYY-MM-DD` `--json-output` |
+| `flagged` | フラグ付き／期限設定メール | `--folder` `--days` `--json-output` |
+
+### カレンダー操作
+
+| コマンド | 説明 | 主なオプション |
+|---|---|---|
+| `cal today` | 今日の予定一覧 | `--date YYYY-MM-DD` `--json-output` |
+| `cal week` | 今週（月〜金）の予定一覧 | `--date YYYY-MM-DD` `--json-output` |
+| `find-slot` | 複数人の空き時間候補（上位5件） | `--attendees "a@co.jp;b@co.jp"` `--duration 60` `--days 5` `--work-start 9` `--work-end 18` `--json-output` |
+
+### 使用例
+
+```powershell
+# 未読件数を確認
+outlook unread-count
+
+# 未読メールの内容をざっと把握
+outlook unread-summary --limit 5
+
+# 今日の予定を確認
+outlook cal today
+
+# 田中さんと佐藤さんの 60 分空き時間を今後5日で探す
+outlook find-slot --attendees "tanaka@company.com;sato@company.com" --duration 60
+
+# find-slot の出力例
+# 空き時間候補（60分）
+# ──────────────────────────────────────
+# 1. ○  2026-05-18 (月) 09:00-10:00
+# 2. ○  2026-05-19 (火) 14:00-15:00
+# 3. △  2026-05-20 (水) 09:00-10:00  ※仮予定あり: tanaka@company.com
+```
+
+## TUI
+
+```powershell
+# TUI 起動
+outlook-tui
+# または
+.venv\Scripts\python.exe -m outlook_cli.tui
+```
+
+キーバインド: `j/k` でリスト移動、`h/l` でペイン切り替え、`q` で終了。
+
+## アーキテクチャ
+
+```
+CLI / TUI
+  └── OutlookBase（抽象クラス）
+        ├── OutlookMock  — JSON ファイルで動作（自宅開発用）
+        └── OutlookCOM   — win32com 経由で Outlook に直接アクセス（会社PC用）
+```
+
+新しいメソッドを追加するときは `base.py` `mock.py` `com.py` の3箇所に実装する。
+
+## 開発
+
+```powershell
+# モック環境でテスト実行
+$env:OUTLOOK_MOCK = 1
+uv run pytest
+
+# CLI を直接実行（インストール不要）
+$env:OUTLOOK_MOCK = 1
+.venv\Scripts\python.exe -m outlook_cli.cli cal today
+```
+
+## ライセンス
+
+MIT
