@@ -75,6 +75,9 @@ $env:OUTLOOK_MOCK=1; .venv\Scripts\python.exe -m outlook_cli.tui
 | `unread-count` | フォルダ別未読件数 | `--folder` `--json-output` |
 | `unread-summary` | 未読メール本文冒頭サマリー | `--folder` `--limit` `--json-output` |
 | `sent-today` | 当日の送信メール一覧 | `--date` `--json-output` |
+| `cal today` | 今日の予定一覧 | `--date` `--json-output` |
+| `cal week` | 今週（月〜金）の予定一覧 | `--date` `--json-output` |
+| `find-slot` | 複数人の空き時間候補 | `--attendees` `--duration` `--days` `--work-start` `--work-end` `--json-output` |
 
 ---
 

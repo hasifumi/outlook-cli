@@ -194,6 +194,52 @@ class OutlookCOM(OutlookBase):
         result["total"] = sum(v for k, v in result.items() if k != "total")
         return result
 
+    def _get_calendar_folder(self):
+        return self.namespace.GetDefaultFolder(9)
+
+    def _appointment_to_dict(self, item) -> dict:
+        start = item.Start
+        end = item.End
+        return {
+            "id":          item.EntryID,
+            "subject":     item.Subject,
+            "start":       start.strftime("%Y-%m-%dT%H:%M:%S"),
+            "end":         end.strftime("%Y-%m-%dT%H:%M:%S"),
+            "location":    item.Location or "",
+            "organizer":   item.Organizer or "",
+            "attendees":   item.RequiredAttendees or "",
+            "all_day":     item.AllDayEvent,
+            "busy_status": item.BusyStatus,
+        }
+
+    def get_calendar(self, start: datetime, end: datetime) -> list:
+        items = self._get_calendar_folder().Items
+        items.IncludeRecurrences = True
+        items.Sort("[Start]")
+        start_str = start.strftime("%m/%d/%Y %I:%M %p")
+        end_str = end.strftime("%m/%d/%Y %I:%M %p")
+        restricted = items.Restrict(f"[Start] >= '{start_str}' AND [Start] < '{end_str}'")
+        result = []
+        for item in restricted:
+            try:
+                d = self._appointment_to_dict(item)
+                # Python側で再フィルタ（Restrictが漏らすケースへの防御）
+                if d["start"] >= start.isoformat()[:19] and d["start"] < end.isoformat()[:19]:
+                    result.append(d)
+            except Exception:
+                continue
+        return result
+
+    def get_freebusy(self, email: str, start: datetime, minutes: int = 30) -> str:
+        try:
+            r = self.namespace.CreateRecipient(email)
+            r.Resolve()
+            if not r.Resolved:
+                return ""
+            return r.FreeBusy(start, minutes, True)
+        except Exception:
+            return ""
+
     def get_contacts(self) -> list[dict]:
         contacts = []
         try:

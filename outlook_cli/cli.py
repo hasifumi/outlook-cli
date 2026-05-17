@@ -1,5 +1,7 @@
 import json
+import math
 import os
+from datetime import datetime, timedelta
 
 import click
 
@@ -13,6 +15,8 @@ def get_client():
         from .com import OutlookCOM
         return OutlookCOM()
 
+
+WEEKDAY_JA = ["月", "火", "水", "木", "金", "土", "日"]
 
 FOLDER_LABELS = {
     "inbox":  "受信トレイ",
@@ -176,6 +180,185 @@ def flagged(folder, days, json_output):
         flag_mark = "[F]" if m.get("flag_status") == 1 else "   "
         due = f" [期限: {m['due_date']}]" if m.get("due_date") else ""
         click.echo(f"{flag_mark} [{m['date'][:10]}] {m['from']:<30}  {m['subject']}{due}")
+
+
+def _format_appointment(appt: dict) -> str:
+    start_dt = datetime.fromisoformat(appt["start"])
+    end_dt = datetime.fromisoformat(appt["end"])
+    if appt.get("all_day"):
+        time_str = "終日"
+    else:
+        time_str = f"{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}"
+    loc = f"  @{appt['location']}" if appt.get("location") else ""
+    return f"  {time_str:<13}  {appt['subject']}{loc}"
+
+
+def _compute_free_slots(
+    freebusy_map: dict,
+    search_start: datetime,
+    days: int,
+    duration_min: int,
+    work_start: int,
+    work_end: int,
+) -> list:
+    slot_minutes = 30
+    slots_per_duration = math.ceil(duration_min / slot_minutes)
+    now = datetime.now()
+    total_slots = days * 24 * 60 // slot_minutes
+    candidates = []
+
+    for i in range(total_slots - slots_per_duration + 1):
+        slot_dt = search_start + timedelta(minutes=i * slot_minutes)
+        if slot_dt < now:
+            continue
+        if slot_dt.weekday() >= 5:
+            continue
+        if not (work_start <= slot_dt.hour < work_end):
+            continue
+        end_dt = slot_dt + timedelta(minutes=duration_min)
+        if end_dt.hour > work_end or (end_dt.hour == work_end and end_dt.minute > 0):
+            continue
+
+        block_ok = True
+        tentative_emails = []
+        for email, fb in freebusy_map.items():
+            for j in range(slots_per_duration):
+                idx = i + j
+                if idx >= len(fb):
+                    block_ok = False
+                    break
+                status = fb[idx]
+                if status in ("2", "3"):
+                    block_ok = False
+                    break
+                if status == "1" and email not in tentative_emails:
+                    tentative_emails.append(email)
+            if not block_ok:
+                break
+
+        if block_ok:
+            candidates.append({
+                "start":     slot_dt.isoformat()[:16],
+                "end":       end_dt.isoformat()[:16],
+                "tentative": tentative_emails,
+            })
+
+    candidates.sort(key=lambda c: len(c["tentative"]))
+    return candidates[:5]
+
+
+@cli.group()
+def cal():
+    """カレンダー参照"""
+    pass
+
+
+@cal.command("today")
+@click.option("--date", default=None, help="対象日 YYYY-MM-DD（省略=今日）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def cal_today(date, json_output):
+    """今日の予定一覧"""
+    client = get_client()
+    target = datetime.fromisoformat(date).date() if date else datetime.now().date()
+    start = datetime(target.year, target.month, target.day)
+    end = start + timedelta(days=1)
+    appts = client.get_calendar(start, end)
+    if json_output:
+        click.echo(json.dumps(appts, ensure_ascii=False, indent=2))
+        return
+    wd = WEEKDAY_JA[start.weekday()]
+    click.echo(f"{target.strftime('%Y-%m-%d')} ({wd}) の予定")
+    click.echo("─" * 38)
+    if not appts:
+        click.echo("  予定なし")
+        return
+    for appt in appts:
+        click.echo(_format_appointment(appt))
+
+
+@cal.command("week")
+@click.option("--date", default=None, help="週内の任意日 YYYY-MM-DD（省略=今週）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def cal_week(date, json_output):
+    """今週（月〜金）の予定一覧"""
+    client = get_client()
+    base = datetime.fromisoformat(date).date() if date else datetime.now().date()
+    monday = base - timedelta(days=base.weekday())
+    start = datetime(monday.year, monday.month, monday.day)
+    end = start + timedelta(days=5)
+    appts = client.get_calendar(start, end)
+    if json_output:
+        click.echo(json.dumps(appts, ensure_ascii=False, indent=2))
+        return
+    week_str = f"{monday.strftime('%Y-%m-%d')} 週"
+    click.echo(f"{week_str} の予定")
+    click.echo("─" * 38)
+    if not appts:
+        click.echo("  予定なし")
+        return
+    current_day = None
+    for appt in appts:
+        day = appt["start"][:10]
+        if day != current_day:
+            current_day = day
+            day_dt = datetime.fromisoformat(day)
+            wd = WEEKDAY_JA[day_dt.weekday()]
+            click.echo(f"\n{day} ({wd})")
+        click.echo(_format_appointment(appt))
+
+
+@cal.command("range")
+def cal_range():
+    """(未実装) 任意期間の予定"""
+    raise click.ClickException("cal range は未実装です")
+
+
+@cli.command("find-slot")
+@click.option("--attendees", required=True, help="セミコロン区切りメールアドレス")
+@click.option("--duration", default=60, help="必要な時間（分）")
+@click.option("--days", default=5, help="何日先まで探すか")
+@click.option("--work-start", default=9, help="業務開始時刻（時）")
+@click.option("--work-end", default=18, help="業務終了時刻（時）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def find_slot(attendees, duration, days, work_start, work_end, json_output):
+    """複数人の空き時間候補を検索"""
+    client = get_client()
+    emails = [e.strip() for e in attendees.split(";") if e.strip()]
+    search_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    freebusy_map = {}
+    for email in emails:
+        fb = client.get_freebusy(email, search_start, 30)
+        if fb == "":
+            click.echo(f"警告: {email} の空き情報を取得できませんでした（除外して探索）", err=True)
+        else:
+            freebusy_map[email] = fb
+
+    if not freebusy_map:
+        raise click.ClickException("空き情報を取得できる参加者がいません")
+
+    candidates = _compute_free_slots(freebusy_map, search_start, days, duration, work_start, work_end)
+
+    if json_output:
+        click.echo(json.dumps(candidates, ensure_ascii=False, indent=2))
+        return
+
+    click.echo(f"空き時間候補（{duration}分）")
+    click.echo("─" * 38)
+    if not candidates:
+        click.echo("候補が見つかりませんでした")
+        return
+    for i, c in enumerate(candidates, 1):
+        start_dt = datetime.fromisoformat(c["start"])
+        wd = WEEKDAY_JA[start_dt.weekday()]
+        date_str = f"{c['start'][:10]} ({wd}) {c['start'][11:]}-{c['end'][11:]}"
+        if c["tentative"]:
+            tent_str = "  ※仮予定あり: " + ", ".join(c["tentative"])
+            mark = "△"
+        else:
+            tent_str = ""
+            mark = "○"
+        click.echo(f"{i}. {mark}  {date_str}{tent_str}")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,9 @@ outlook-tui = "outlook_cli.tui:main"
 [tool.hatch.build.targets.wheel]
 packages = ["outlook_cli"]
 
+[dependency-groups]
+dev = ["pytest"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

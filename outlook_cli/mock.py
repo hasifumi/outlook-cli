@@ -4,6 +4,21 @@ from pathlib import Path
 
 from .base import OutlookBase
 
+# (weekday 0=Mon..4=Fri, start_hour, start_min, duration_min, busy_status)
+_MOCK_BUSY_SCHEDULE = {
+    "tanaka@company.com": [
+        (0, 10,  0, 60, 2),  # Mon 10:00-11:00 Busy
+        (0, 15,  0, 30, 2),  # Mon 15:00-15:30 Busy
+        (2, 10,  0, 60, 2),  # Wed 10:00-11:00 Busy
+        (3,  9, 30, 30, 1),  # Thu 09:30-10:00 Tentative
+    ],
+    "sato@company.com": [
+        (2, 13,  0, 90, 2),  # Wed 13:00-14:30 Busy
+        (1, 14,  0, 60, 1),  # Tue 14:00-15:00 Tentative
+        (4, 10,  0, 60, 2),  # Fri 10:00-11:00 Busy
+    ],
+}
+
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data.json"
 
 
@@ -136,6 +151,34 @@ class OutlookMock(OutlookBase):
                     "due_date":    due_date,
                 })
         return sorted(result, key=lambda m: m["date"], reverse=True)
+
+    def get_calendar(self, start: datetime, end: datetime) -> list:
+        start_iso = start.isoformat()[:19]
+        end_iso = end.isoformat()[:19]
+        items = self._data.get("calendar", [])
+        result = [
+            item for item in items
+            if item["start"] < end_iso and item["end"] > start_iso
+        ]
+        return sorted(result, key=lambda x: x["start"])
+
+    def get_freebusy(self, email: str, start: datetime, minutes: int = 30) -> str:
+        schedule = _MOCK_BUSY_SCHEDULE.get(email)
+        total_slots = (7 * 24 * 60) // minutes
+        slots = ["0"] * total_slots
+        if schedule is None:
+            return "".join(slots)
+        for weekday, sh, sm, dur_min, status in schedule:
+            for slot_offset in range(total_slots):
+                slot_dt = start + timedelta(minutes=slot_offset * minutes)
+                if slot_dt.weekday() != weekday:
+                    continue
+                slot_minutes_from_midnight = slot_dt.hour * 60 + slot_dt.minute
+                event_start_min = sh * 60 + sm
+                event_end_min = event_start_min + dur_min
+                if event_start_min <= slot_minutes_from_midnight < event_end_min:
+                    slots[slot_offset] = str(status)
+        return "".join(slots)
 
     def unread_count(self, folder: str = None) -> dict:
         result = {}
