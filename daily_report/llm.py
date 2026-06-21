@@ -49,7 +49,7 @@ def ensure_api_server(health_url: str, start_cmd: str, timeout: int = 30) -> Non
 
 def call_llm(endpoint: str, cal: str, comm: str, aw: str) -> str:
     payload = {
-        "model": "default",
+        "model": "Qwen3.6-27B-Q4_K_M.gguf",
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {

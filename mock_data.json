@@ -7,10 +7,10 @@
     {"id": "mock-005", "subject": "Re: プロジェクト進捗確認", "from": "sato@company.com", "from_name": "佐藤 次郎", "to": "you@company.com", "cc": "", "date": "2026-04-19T16:45:00", "unread": false, "has_attachments": false, "flag_status": 0, "due_date": null, "body": "進捗を共有します。フェーズ1は完了、フェーズ2は80%完了です。来週中に完了予定です。"}
   ],
   "sent": [
-    {"id": "mock-s01", "subject": "Re: 来週の定例会議について", "from": "you@company.com", "from_name": "自分", "to": "tanaka@company.com", "cc": "", "date": "2026-03-28T10:00:00", "unread": false, "body": "承知しました。第2会議室ですね。よろしくお願いします。"},
-    {"id": "mock-s02", "subject": "Q1レポート提出しました", "from": "you@company.com", "from_name": "自分", "to": "suzuki@company.com", "cc": "", "date": "2026-04-26T09:30:00", "unread": false, "body": "お世話になっております。Q1レポートを提出しました。ご確認よろしくお願いします。"},
-    {"id": "mock-s03", "subject": "Re: 承認依頼：経費精算", "from": "you@company.com", "from_name": "自分", "to": "yamada@company.com", "cc": "", "date": "2026-04-26T11:45:00", "unread": false, "body": "承認しました。お疲れ様です。"},
-    {"id": "mock-s04", "subject": "プロジェクトA 進捗報告", "from": "you@company.com", "from_name": "自分", "to": "manager@company.com", "cc": "sato@company.com", "date": "2026-04-26T14:00:00", "unread": false, "body": "本日の進捗を報告します。フェーズ2の実装が完了し、テスト工程に入りました。"}
+    {"id": "mock-s01", "subject": "Re: 来週の定例会議について", "from": "you@company.com", "from_name": "自分", "to": "tanaka@company.com", "cc": "", "date": "2026-06-21T10:00:00", "unread": false, "body": "承知しました。第2会議室ですね。よろしくお願いします。"},
+    {"id": "mock-s02", "subject": "Q1レポート提出しました", "from": "you@company.com", "from_name": "自分", "to": "suzuki@company.com", "cc": "", "date": "2026-06-21T09:30:00", "unread": false, "body": "お世話になっております。Q1レポートを提出しました。ご確認よろしくお願いします。"},
+    {"id": "mock-s03", "subject": "Re: 承認依頼：経費精算", "from": "you@company.com", "from_name": "自分", "to": "yamada@company.com", "cc": "", "date": "2026-06-21T11:45:00", "unread": false, "body": "承認しました。お疲れ様です。"},
+    {"id": "mock-s04", "subject": "プロジェクトA 進捗報告", "from": "you@company.com", "from_name": "自分", "to": "manager@company.com", "cc": "sato@company.com", "date": "2026-06-21T14:00:00", "unread": false, "body": "本日の進捗を報告します。フェーズ2の実装が完了し、テスト工程に入りました。"}
   ],
   "drafts": [],
   "trash": [
@@ -34,11 +34,11 @@
     {"name": "人事部", "email": "hr@company.com"}
   ],
   "calendar": [
-    {"id":"cal-001","subject":"週次定例MTG","start":"2026-05-18T10:00:00","end":"2026-05-18T11:00:00","location":"第2会議室","organizer":"田中 一郎","attendees":"tanaka@company.com;sato@company.com","all_day":false,"busy_status":2},
-    {"id":"cal-002","subject":"1on1","start":"2026-05-18T15:00:00","end":"2026-05-18T15:30:00","location":"オンライン","organizer":"部長 一夫","attendees":"manager@company.com","all_day":false,"busy_status":2},
-    {"id":"cal-003","subject":"プロジェクトA 設計レビュー","start":"2026-05-20T13:00:00","end":"2026-05-20T14:30:00","location":"第1会議室","organizer":"佐藤 次郎","attendees":"sato@company.com","all_day":false,"busy_status":2},
-    {"id":"cal-004","subject":"全社終日研修","start":"2026-05-22T00:00:00","end":"2026-05-23T00:00:00","location":"本社ホール","organizer":"人事部","attendees":"all@company.com","all_day":true,"busy_status":3},
-    {"id":"cal-005","subject":"来週キックオフ","start":"2026-05-25T09:00:00","end":"2026-05-25T10:00:00","location":"第2会議室","organizer":"部長 一夫","attendees":"manager@company.com","all_day":false,"busy_status":2},
-    {"id":"cal-006","subject":"本日打ち合わせ","start":"2026-05-17T16:00:00","end":"2026-05-17T17:00:00","location":"オンライン","organizer":"鈴木 花子","attendees":"suzuki@company.com","all_day":false,"busy_status":1}
+    {"id":"cal-001","subject":"週次定例MTG","start":"2026-06-21T10:00:00","end":"2026-06-21T11:00:00","location":"第2会議室","organizer":"田中 一郎","attendees":"tanaka@company.com;sato@company.com","all_day":false,"busy_status":2},
+    {"id":"cal-002","subject":"1on1","start":"2026-06-21T15:00:00","end":"2026-06-21T15:30:00","location":"オンライン","organizer":"部長 一夫","attendees":"manager@company.com","all_day":false,"busy_status":2},
+    {"id":"cal-003","subject":"プロジェクトA 設計レビュー","start":"2026-06-21T13:00:00","end":"2026-06-21T14:30:00","location":"第1会議室","organizer":"佐藤 次郎","attendees":"sato@company.com","all_day":false,"busy_status":2},
+    {"id":"cal-004","subject":"全社終日研修","start":"2026-06-21T00:00:00","end":"2026-06-22T00:00:00","location":"本社ホール","organizer":"人事部","attendees":"all@company.com","all_day":true,"busy_status":3},
+    {"id":"cal-005","subject":"明日キックオフ","start":"2026-06-22T09:00:00","end":"2026-06-22T10:00:00","location":"第2会議室","organizer":"部長 一夫","attendees":"manager@company.com","all_day":false,"busy_status":2},
+    {"id":"cal-006","subject":"明日打ち合わせ","start":"2026-06-22T16:00:00","end":"2026-06-22T17:00:00","location":"オンライン","organizer":"鈴木 花子","attendees":"suzuki@company.com","all_day":false,"busy_status":1}
   ]
 }
