@@ -4,18 +4,24 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "click",
+    "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
     "textual>=8.2.1",
+    "win10toast>=0.9",
 ]
 
 [project.scripts]
 outlook = "outlook_cli.cli:cli"
 outlook-tui = "outlook_cli.tui:main"
+daily-report = "daily_report.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["outlook_cli"]
+packages = ["outlook_cli", "daily_report"]
 
 [dependency-groups]
-dev = ["pytest"]
+dev = [
+    "pytest",
+]
 
 [build-system]
 requires = ["hatchling"]
