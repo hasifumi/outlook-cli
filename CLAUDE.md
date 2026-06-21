@@ -30,8 +30,13 @@ Neovim / Claude Code
   │           ├── OutlookMock  ← 自宅開発用（JSONファイル）
   │           └── OutlookCOM   ← 会社PC用（win32com）
   │
-  └── outlook-tui  （Textual TUIアプリ）
-        └── 同じ OutlookBase 経由
+  ├── outlook-tui  （Textual TUIアプリ）
+  │     └── 同じ OutlookBase 経由
+  │
+  └── daily_report  （スタンドアロン日報生成）
+        ├── OutlookBase をライブラリとしてインポート
+        ├── ActivityWatch REST API / SQLite
+        └── ローカル LLM（OpenAI 互換 API）→ Obsidian に Markdown 保存
 ```
 
 ### フォルダ構成
@@ -40,16 +45,26 @@ Neovim / Claude Code
 outlook-cli/
 ├── CLAUDE.md
 ├── pyproject.toml
+├── .env                   ← LLM設定・出力先（.gitignore済み）
 ├── mock_data.json         ← モックデータ（自宅開発用）
-└── outlook_cli/
-    ├── base.py            ← OutlookBase 抽象クラス
-    ├── mock.py            ← OutlookMock
-    ├── com.py             ← OutlookCOM（win32com）
-    ├── cli.py             ← Click エントリポイント
-    └── tui.py             ← Textual TUI
+├── outlook_cli/
+│   ├── base.py            ← OutlookBase 抽象クラス
+│   ├── mock.py            ← OutlookMock
+│   ├── com.py             ← OutlookCOM（win32com）
+│   ├── cli.py             ← Click エントリポイント
+│   └── tui.py             ← Textual TUI
+├── daily_report/
+│   ├── __main__.py        ← python -m daily_report エントリポイント
+│   ├── collect.py         ← カレンダー・送信メール・AW収集
+│   ├── llm.py             ← LLM API呼び出し・サーバ起動確認
+│   └── report.py          ← Markdown保存・win10toast通知
+├── scripts/
+│   └── daily_report.ps1   ← タスクスケジューラ用ラッパー
+└── tests/
+    └── test_daily_report.py
 ```
 
-新しいメソッドを追加するときは **base.py・mock.py・com.py の3箇所**に実装する。
+outlook_cli に新しいメソッドを追加するときは **base.py・mock.py・com.py の3箇所**に実装する。
 
 ### 環境切り替え
 
@@ -97,22 +112,36 @@ Outlook COM
 
 ---
 
-## 振り返りワークフロー（目標形態）
+## 振り返りワークフロー
 
 ```
-朝イチ  → unread-count     # 今日の負荷を把握
-随時    → unread-summary   # Outlookを開かずに内容確認
-夕方    → sent-today | LLM # 日次振り返りサマリー生成
+朝イチ  → outlook unread-count      # 今日の負荷を把握
+随時    → outlook unread-summary    # Outlookを開かずに内容確認
+夕方    → python -m daily_report    # 日報自動生成（タスクスケジューラで自動実行）
 ```
 
-将来的には LoChaBot の APScheduler Cog として自動実行し Discord に投げる。
+日報は `V:\obsidian\YYYY-MM-DD.md` に保存される。win10toast で完了通知あり。
+
+---
+
+## daily_report の設定（.env）
+
+```
+DAILY_REPORT_API_ENDPOINT=http://192.168.1.76:8089/v1/chat/completions
+DAILY_REPORT_API_HEALTH_URL=http://192.168.1.76:8089/v1/models
+DAILY_REPORT_API_START_CMD=   # APIサーバの起動コマンド（未設定時は自動起動しない）
+DAILY_REPORT_OUTPUT_DIR=V:\obsidian
+ACTIVITYWATCH_DB=             # 空の場合はREST API優先（localhost:5600）
+```
 
 ---
 
 ## 次のアクション
 
-1. `outlook_bridge.py` の実装 → HTTP化して LoChaBot から呼べるようにする
-2. 会社PCで `OutlookCOM` の動作確認（`unread-summary` / `sent-today`）
+1. 会社PCで `OutlookCOM` の動作確認（`unread-summary` / `sent-today` / `daily-report`）
+2. `DAILY_REPORT_API_START_CMD` に LLM サーバの起動コマンドを設定
+3. Mattermost トークン取得後に `daily_report/collect.py` の `collect_mattermost()` を実装
+4. タスクスケジューラに `scripts\daily_report.ps1` を登録（毎日17:30）
 
 ---
 

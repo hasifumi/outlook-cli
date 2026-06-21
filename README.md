@@ -101,6 +101,30 @@ outlook-tui
 
 キーバインド: `j/k` でリスト移動、`h/l` でペイン切り替え、`q` で終了。
 
+## 日報自動生成（daily_report）
+
+Outlook・ActivityWatch・Mattermost のデータをローカル LLM に渡し、
+日報 Markdown ファイルを自動生成して Obsidian vault に保存する。
+
+```powershell
+# 初回: .env を設定
+copy .env.example .env   # または直接編集
+# DAILY_REPORT_API_ENDPOINT=http://192.168.1.76:8089/v1/chat/completions
+# DAILY_REPORT_OUTPUT_DIR=V:\obsidian
+
+# 手動実行
+.venv\Scripts\python.exe -m daily_report
+
+# 出力先を一時的に変更
+.venv\Scripts\python.exe -m daily_report --output-dir C:\tmp
+
+# 過去日付で生成
+.venv\Scripts\python.exe -m daily_report --date 2026-06-20
+```
+
+タスクスケジューラへの登録は `scripts\daily_report.ps1` のコメントを参照。
+詳細は [`daily_report/README.md`](daily_report/README.md) を参照。
+
 ## アーキテクチャ
 
 ```
@@ -108,6 +132,11 @@ CLI / TUI
   └── OutlookBase（抽象クラス）
         ├── OutlookMock  — JSON ファイルで動作（自宅開発用）
         └── OutlookCOM   — win32com 経由で Outlook に直接アクセス（会社PC用）
+
+daily_report（スタンドアロン）
+  ├── collect.py  — OutlookBase + ActivityWatch からデータ収集
+  ├── llm.py      — ローカル LLM API 呼び出し（OpenAI 互換）
+  └── report.py   — Markdown 保存・Windows 通知
 ```
 
 新しいメソッドを追加するときは `base.py` `mock.py` `com.py` の3箇所に実装する。
@@ -122,6 +151,10 @@ uv run pytest
 # CLI を直接実行（インストール不要）
 $env:OUTLOOK_MOCK = 1
 .venv\Scripts\python.exe -m outlook_cli.cli cal today
+
+# daily_report をモック環境で実行
+$env:OUTLOOK_MOCK = 1
+.venv\Scripts\python.exe -m daily_report --output-dir C:\tmp --no-notify
 ```
 
 ## ライセンス
