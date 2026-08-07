@@ -155,3 +155,26 @@ class TestSentTodayTool:
         mcp_server.sent_today()
 
         client.sent_today.assert_called_once_with(date=None)
+
+
+class TestFlaggedTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_delegates_to_flagged_or_due(self, mock_get_client):
+        client = MagicMock()
+        client.flagged_or_due.return_value = [{"id": "1", "subject": "important"}]
+        mock_get_client.return_value = client
+
+        result = mcp_server.flagged(folder="inbox", days=3)
+
+        client.flagged_or_due.assert_called_once_with(days=3, folder="inbox")
+        assert result == [{"id": "1", "subject": "important"}]
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_uses_defaults(self, mock_get_client):
+        client = MagicMock()
+        client.flagged_or_due.return_value = []
+        mock_get_client.return_value = client
+
+        mcp_server.flagged()
+
+        client.flagged_or_due.assert_called_once_with(days=7, folder="inbox")
