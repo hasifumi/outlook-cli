@@ -68,3 +68,13 @@ class OutlookBase(ABC):
     def flagged_or_due(self, days: int = 7, folder: str = "inbox") -> list:
         """重要フラグまたは期限設定のあるメール (days以内受信) → [{"id", "subject", "from", "date", "flag_status", "due_date"}, ...]"""
         ...
+
+    @abstractmethod
+    def get_calendar(self, start: datetime, end: datetime) -> list:
+        """期間内の予定一覧 → [{"id", "subject", "start", "end", "location", "organizer", "attendees", "all_day", "busy_status"}, ...]"""
+        ...
+
+    @abstractmethod
+    def get_freebusy(self, email: str, start: datetime, minutes: int = 30) -> str:
+        """空き状況ビット文字列取得（30分単位のbusy_statusを連結）"""
+        ...
