@@ -59,3 +59,40 @@ class TestSearchTool:
         mcp_server.search(keyword="foo")
 
         client.search.assert_called_once_with(keyword="foo", days=7, sender=None)
+
+
+class TestReadTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_client_read_with_mail_id(self, mock_get_client):
+        client = MagicMock()
+        client.read.return_value = {"id": "1", "subject": "test", "body": "hello"}
+        mock_get_client.return_value = client
+
+        result = mcp_server.read(mail_id="1")
+
+        client.read.assert_called_once_with("1")
+        assert result == {"id": "1", "subject": "test", "body": "hello"}
+
+
+class TestSendTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_client_send_and_returns_confirmation(self, mock_get_client):
+        client = MagicMock()
+        mock_get_client.return_value = client
+
+        result = mcp_server.send(to="a@b.com", subject="s", body="b")
+
+        client.send.assert_called_once_with(to="a@b.com", subject="s", body="b")
+        assert result == {"status": "sent"}
+
+
+class TestReplyTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_client_reply_and_returns_confirmation(self, mock_get_client):
+        client = MagicMock()
+        mock_get_client.return_value = client
+
+        result = mcp_server.reply(mail_id="1", body="b")
+
+        client.reply.assert_called_once_with(mail_id="1", body="b")
+        assert result == {"status": "replied"}
