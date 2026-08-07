@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -178,3 +179,34 @@ class TestFlaggedTool:
         mcp_server.flagged()
 
         client.flagged_or_due.assert_called_once_with(days=7, folder="inbox")
+
+
+class TestCalTodayTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_get_calendar_with_single_day_range(self, mock_get_client):
+        client = MagicMock()
+        client.get_calendar.return_value = [{"subject": "meeting"}]
+        mock_get_client.return_value = client
+
+        result = mcp_server.cal_today(date="2026-08-07")
+
+        client.get_calendar.assert_called_once_with(
+            datetime(2026, 8, 7), datetime(2026, 8, 8)
+        )
+        assert result == [{"subject": "meeting"}]
+
+
+class TestCalWeekTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_get_calendar_with_monday_to_friday_range(self, mock_get_client):
+        client = MagicMock()
+        client.get_calendar.return_value = [{"subject": "weekly"}]
+        mock_get_client.return_value = client
+
+        # 2026-08-07 is a Friday; the week's Monday is 2026-08-03
+        result = mcp_server.cal_week(date="2026-08-07")
+
+        client.get_calendar.assert_called_once_with(
+            datetime(2026, 8, 3), datetime(2026, 8, 8)
+        )
+        assert result == [{"subject": "weekly"}]
