@@ -51,6 +51,24 @@ def reply(mail_id: str, body: str) -> dict:
     return {"status": "replied"}
 
 
+@mcp.tool()
+def unread_count(folder: str | None = None) -> dict:
+    """フォルダ別未読件数"""
+    return get_client().unread_count(folder=folder)
+
+
+@mcp.tool()
+def unread_summary(limit: int = 10, folder: str = "inbox") -> list:
+    """未読メール本文冒頭サマリー"""
+    return get_client().unread_summary(limit=limit, folder=folder)
+
+
+@mcp.tool()
+def sent_today(date: str | None = None) -> list:
+    """当日の送信メール一覧"""
+    return get_client().sent_today(date=date)
+
+
 def main():
     mcp.run(
         transport="streamable-http",
