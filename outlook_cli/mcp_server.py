@@ -19,6 +19,18 @@ def get_client():
 mcp = MCPServer("outlook-cli")
 
 
+@mcp.tool(name="list")
+def list_mails_tool(folder: str = "inbox", limit: int = 20) -> list:
+    """メール一覧取得"""
+    return get_client().list_mails(folder=folder, limit=limit)
+
+
+@mcp.tool()
+def search(keyword: str, days: int = 7, sender: str | None = None) -> list:
+    """メール検索"""
+    return get_client().search(keyword=keyword, days=days, sender=sender)
+
+
 def main():
     mcp.run(
         transport="streamable-http",
