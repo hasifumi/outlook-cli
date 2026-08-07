@@ -210,3 +210,30 @@ class TestCalWeekTool:
             datetime(2026, 8, 3), datetime(2026, 8, 8)
         )
         assert result == [{"subject": "weekly"}]
+
+
+class TestFindSlotTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_builds_freebusy_map_and_delegates_to_compute_free_slots(self, mock_get_client):
+        client = MagicMock()
+        client.get_freebusy.side_effect = ["0" * 336, "0" * 336]
+        mock_get_client.return_value = client
+
+        result = mcp_server.find_slot(
+            attendees="tanaka@company.com;sato@company.com",
+            duration=60, days=5, work_start=9, work_end=18,
+        )
+
+        assert client.get_freebusy.call_count == 2
+        assert isinstance(result, list)
+        if result:
+            assert set(result[0].keys()) == {"start", "end", "tentative"}
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_raises_when_no_freebusy_available(self, mock_get_client):
+        client = MagicMock()
+        client.get_freebusy.return_value = ""
+        mock_get_client.return_value = client
+
+        with pytest.raises(ValueError):
+            mcp_server.find_slot(attendees="tanaka@company.com")
