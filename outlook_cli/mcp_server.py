@@ -69,6 +69,12 @@ def sent_today(date: str | None = None) -> list:
     return get_client().sent_today(date=date)
 
 
+@mcp.tool()
+def flagged(folder: str = "inbox", days: int = 7) -> list:
+    """重要フラグまたは期限設定のあるメール"""
+    return get_client().flagged_or_due(days=days, folder=folder)
+
+
 def main():
     mcp.run(
         transport="streamable-http",
