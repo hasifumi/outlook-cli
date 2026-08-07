@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from mcp.server.mcpserver import MCPServer
 
+from .cli import _compute_free_slots
 from .mock import OutlookMock
 
 load_dotenv()
@@ -93,6 +94,31 @@ def cal_week(date: str | None = None) -> list:
     start = datetime(monday.year, monday.month, monday.day)
     end = start + timedelta(days=5)
     return get_client().get_calendar(start, end)
+
+
+@mcp.tool()
+def find_slot(
+    attendees: str,
+    duration: int = 60,
+    days: int = 5,
+    work_start: int = 9,
+    work_end: int = 18,
+) -> list:
+    """複数人の空き時間候補を検索"""
+    client = get_client()
+    emails = [e.strip() for e in attendees.split(";") if e.strip()]
+    search_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    freebusy_map = {}
+    for email in emails:
+        fb = client.get_freebusy(email, search_start, 30)
+        if fb != "":
+            freebusy_map[email] = fb
+
+    if not freebusy_map:
+        raise ValueError("空き情報を取得できる参加者がいません")
+
+    return _compute_free_slots(freebusy_map, search_start, days, duration, work_start, work_end)
 
 
 def main():
