@@ -31,6 +31,26 @@ def search(keyword: str, days: int = 7, sender: str | None = None) -> list:
     return get_client().search(keyword=keyword, days=days, sender=sender)
 
 
+@mcp.tool()
+def read(mail_id: str) -> dict:
+    """メール本文取得"""
+    return get_client().read(mail_id)
+
+
+@mcp.tool()
+def send(to: str, subject: str, body: str) -> dict:
+    """メール送信"""
+    get_client().send(to=to, subject=subject, body=body)
+    return {"status": "sent"}
+
+
+@mcp.tool()
+def reply(mail_id: str, body: str) -> dict:
+    """メール返信"""
+    get_client().reply(mail_id=mail_id, body=body)
+    return {"status": "replied"}
+
+
 def main():
     mcp.run(
         transport="streamable-http",
