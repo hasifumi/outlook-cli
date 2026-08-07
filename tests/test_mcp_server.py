@@ -96,3 +96,62 @@ class TestReplyTool:
 
         client.reply.assert_called_once_with(mail_id="1", body="b")
         assert result == {"status": "replied"}
+
+
+class TestUnreadCountTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_returns_dict_with_folder_keys_and_total(self, mock_get_client):
+        client = MagicMock()
+        client.unread_count.return_value = {"inbox": 3, "total": 3}
+        mock_get_client.return_value = client
+
+        result = mcp_server.unread_count(folder=None)
+
+        client.unread_count.assert_called_once_with(folder=None)
+        assert result == {"inbox": 3, "total": 3}
+
+
+class TestUnreadSummaryTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_client_with_limit_and_folder(self, mock_get_client):
+        client = MagicMock()
+        client.unread_summary.return_value = [{"subject": "s", "preview": "p"}]
+        mock_get_client.return_value = client
+
+        result = mcp_server.unread_summary(limit=5, folder="inbox")
+
+        client.unread_summary.assert_called_once_with(limit=5, folder="inbox")
+        assert result == [{"subject": "s", "preview": "p"}]
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_uses_defaults(self, mock_get_client):
+        client = MagicMock()
+        client.unread_summary.return_value = []
+        mock_get_client.return_value = client
+
+        mcp_server.unread_summary()
+
+        client.unread_summary.assert_called_once_with(limit=10, folder="inbox")
+
+
+class TestSentTodayTool:
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_calls_client_with_date(self, mock_get_client):
+        client = MagicMock()
+        client.sent_today.return_value = [{"subject": "s", "to": "a@b.com"}]
+        mock_get_client.return_value = client
+
+        result = mcp_server.sent_today(date="2026-08-07")
+
+        client.sent_today.assert_called_once_with(date="2026-08-07")
+        assert result == [{"subject": "s", "to": "a@b.com"}]
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_uses_default_date(self, mock_get_client):
+        client = MagicMock()
+        client.sent_today.return_value = []
+        mock_get_client.return_value = client
+
+        mcp_server.sent_today()
+
+        client.sent_today.assert_called_once_with(date=None)
