@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 from mcp.server.mcpserver import MCPServer
@@ -73,6 +74,25 @@ def sent_today(date: str | None = None) -> list:
 def flagged(folder: str = "inbox", days: int = 7) -> list:
     """重要フラグまたは期限設定のあるメール"""
     return get_client().flagged_or_due(days=days, folder=folder)
+
+
+@mcp.tool()
+def cal_today(date: str | None = None) -> list:
+    """今日の予定一覧"""
+    target = datetime.fromisoformat(date).date() if date else datetime.now().date()
+    start = datetime(target.year, target.month, target.day)
+    end = start + timedelta(days=1)
+    return get_client().get_calendar(start, end)
+
+
+@mcp.tool()
+def cal_week(date: str | None = None) -> list:
+    """今週（月〜金）の予定一覧"""
+    base = datetime.fromisoformat(date).date() if date else datetime.now().date()
+    monday = base - timedelta(days=base.weekday())
+    start = datetime(monday.year, monday.month, monday.day)
+    end = start + timedelta(days=5)
+    return get_client().get_calendar(start, end)
 
 
 def main():
