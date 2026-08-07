@@ -90,6 +90,28 @@ outlook find-slot --attendees "tanaka@company.com;sato@company.com" --duration 6
 # 3. △  2026-05-20 (水) 09:00-10:00  ※仮予定あり: tanaka@company.com
 ```
 
+## MCP サーバー
+
+CLIコマンドと同じ12個の操作（list/search/read/send/reply/unread_count/unread_summary/
+sent_today/flagged/cal_today/cal_week/find_slot）をMCP（Model Context Protocol）ツールとして、
+Streamable HTTPで公開する。外部ツール（MCPクライアント）から直接Outlookを操作できる。
+
+```powershell
+# 自宅（モック）で起動
+$env:OUTLOOK_MOCK = 1
+outlook-mcp
+# または
+.venv\Scripts\python.exe -m outlook_cli.mcp_server
+```
+
+デフォルトでは `http://0.0.0.0:8764/mcp` で待ち受ける。認証は付けていないため、
+社内LANなど信頼できるネットワーク内での利用を前提とする。
+
+| 環境変数 | 説明 | デフォルト |
+|---|---|---|
+| `OUTLOOK_MCP_HOST` | 待ち受けホスト | `0.0.0.0` |
+| `OUTLOOK_MCP_PORT` | 待ち受けポート | `8764` |
+
 ## TUI
 
 ```powershell
@@ -128,7 +150,7 @@ copy .env.example .env   # または直接編集
 ## アーキテクチャ
 
 ```
-CLI / TUI
+CLI / TUI / MCPサーバー（mcp_server.py）
   └── OutlookBase（抽象クラス）
         ├── OutlookMock  — JSON ファイルで動作（自宅開発用）
         └── OutlookCOM   — win32com 経由で Outlook に直接アクセス（会社PC用）

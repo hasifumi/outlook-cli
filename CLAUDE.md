@@ -33,6 +33,9 @@ Neovim / Claude Code
   ├── outlook-tui  （Textual TUIアプリ）
   │     └── 同じ OutlookBase 経由
   │
+  ├── outlook-mcp  （MCPサーバー、Streamable HTTP）
+  │     └── 同じ OutlookBase 経由。CLIコマンド相当の12ツールを公開
+  │
   └── daily_report  （スタンドアロン日報生成）
         ├── OutlookBase をライブラリとしてインポート
         ├── ActivityWatch REST API / SQLite
@@ -52,7 +55,8 @@ outlook-cli/
 │   ├── mock.py            ← OutlookMock
 │   ├── com.py             ← OutlookCOM（win32com）
 │   ├── cli.py             ← Click エントリポイント
-│   └── tui.py             ← Textual TUI
+│   ├── tui.py             ← Textual TUI
+│   └── mcp_server.py      ← MCPサーバー（Streamable HTTP, port 8764）
 ├── daily_report/
 │   ├── __main__.py        ← python -m daily_report エントリポイント
 │   ├── collect.py         ← カレンダー・送信メール・AW収集
@@ -94,21 +98,28 @@ $env:OUTLOOK_MOCK=1; .venv\Scripts\python.exe -m outlook_cli.tui
 | `cal week` | 今週（月〜金）の予定一覧 | `--date` `--json-output` |
 | `find-slot` | 複数人の空き時間候補 | `--attendees` `--duration` `--days` `--work-start` `--work-end` `--json-output` |
 
+上記コマンドはすべてMCPツールとしても公開されている（[MCPサーバー](#mcpサーバーoutlook-mcp)参照）。
+
 ---
 
-## ブリッジ構成（将来タスク：WSL2 / LoChaBot 連携）
+## MCPサーバー（outlook-mcp）
 
 ```
-WSL2 (LoChaBot / Claude Code)
-    │  HTTP (localhost:5050)
+Diffcoder（MCPクライアント機能を実装予定）
+    │  Streamable HTTP (0.0.0.0:8764/mcp)
     ▼
-Windows Python サーバー (outlook_bridge.py)
-    │  win32com
+outlook_cli/mcp_server.py
+    │  OutlookBase
     ▼
-Outlook COM
+OutlookMock / OutlookCOM
 ```
 
-エンドポイント想定: `GET /unread/count` `/unread/summary` `/sent/today`
+CLIコマンド相当の12ツール（list/search/read/send/reply/unread_count/unread_summary/
+sent_today/flagged/cal_today/cal_week/find_slot）を公開。認証なし（社内LAN前提）。
+起動: `outlook-mcp`（環境変数 `OUTLOOK_MCP_HOST` / `OUTLOOK_MCP_PORT` で上書き可）。
+
+旧来検討していたLoChaBot向けRESTブリッジ（`outlook_bridge.py`, port 5050）構想は、
+LoChaBotの廃止（Discord bot移行）に伴い不要と判断し、MCPサーバーに統合済み。
 
 ---
 
@@ -142,6 +153,7 @@ ACTIVITYWATCH_DB=             # 空の場合はREST API優先（localhost:5600�
 2. `DAILY_REPORT_API_START_CMD` に LLM サーバの起動コマンドを設定
 3. Mattermost トークン取得後に `daily_report/collect.py` の `collect_mattermost()` を実装
 4. タスクスケジューラに `scripts\daily_report.ps1` を登録（毎日17:30）
+5. 会社PCで `outlook-mcp`（`OutlookCOM`経由）の動作確認、Diffcoderからの接続確認
 
 ---
 
