@@ -69,6 +69,7 @@ class OutlookMock(OutlookBase):
             self._data.get("inbox", [])
             + self._data.get("sent", [])
             + self._data.get("trash", [])
+            + self._data.get("drafts", [])
             + sum(self._data.get("folders", {}).values(), [])
         )
         for mail in all_mails:
