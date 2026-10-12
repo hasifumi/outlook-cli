@@ -9,3 +9,7 @@ dist/
 build/
 .kata/
 kata.toml
+
+# 会社 PC へ持ち込むための写し
+*.py.txt
+daily_report_bundle.txt
