@@ -17,6 +17,15 @@ _MOCK_BUSY_SCHEDULE = {
         (1, 14,  0, 60, 1),  # Tue 14:00-15:00 Tentative
         (4, 10,  0, 60, 2),  # Fri 10:00-11:00 Busy
     ],
+    "suzuki@company.com": [
+        (3,  0,  0, 1440, 3),  # Thu 終日 Out of Office（休暇）
+    ],
+    "yamada@company.com": [
+        (3, 14,  0, 30, 1),  # Thu 14:00-14:30 Tentative（室定例と一部重複、判断が割れるケース）
+    ],
+    "kimura@company.com": [
+        (3, 14,  0, 60, 2),  # Thu 14:00-15:00 Busy（室定例と完全重複、確定予定とバッティング）
+    ],
 }
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data.json"

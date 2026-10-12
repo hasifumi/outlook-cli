@@ -31,7 +31,8 @@
     {"name": "佐藤 次郎", "email": "sato@company.com"},
     {"name": "ITサポート", "email": "it-support@company.com"},
     {"name": "部長 一夫", "email": "manager@company.com"},
-    {"name": "人事部", "email": "hr@company.com"}
+    {"name": "人事部", "email": "hr@company.com"},
+    {"name": "木村 健", "email": "kimura@company.com"}
   ],
   "calendar": [
     {"id":"cal-001","subject":"週次定例MTG","start":"2026-06-21T10:00:00","end":"2026-06-21T11:00:00","location":"第2会議室","organizer":"田中 一郎","attendees":"tanaka@company.com;sato@company.com","all_day":false,"busy_status":2},
