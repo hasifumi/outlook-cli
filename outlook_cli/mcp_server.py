@@ -22,15 +22,15 @@ mcp = MCPServer("outlook-cli")
 
 
 @mcp.tool(name="list")
-def list_mails_tool(folder: str = "inbox", limit: int = 20) -> list:
-    """メール一覧取得"""
-    return get_client().list_mails(folder=folder, limit=limit)
+def list_mails_tool(folder: str = "inbox", limit: int = 20, include_body: bool = False) -> list:
+    """メール一覧取得。include_body=True で本文全文を含める。conversation_id でスレッド単位にまとめられる"""
+    return get_client().list_mails(folder=folder, limit=limit, include_body=include_body)
 
 
 @mcp.tool()
-def search(keyword: str, days: int = 7, sender: str | None = None) -> list:
-    """メール検索"""
-    return get_client().search(keyword=keyword, days=days, sender=sender)
+def search(keyword: str, days: int = 7, sender: str | None = None, include_body: bool = False) -> list:
+    """メール検索。include_body=True で本文全文を含める。conversation_id でスレッド単位にまとめられる"""
+    return get_client().search(keyword=keyword, days=days, sender=sender, include_body=include_body)
 
 
 @mcp.tool()

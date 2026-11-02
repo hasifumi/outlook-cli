@@ -26,6 +26,15 @@ FOLDER_LABELS = {
 }
 
 
+def _echo_body(mail: dict) -> None:
+    """--with-body 指定時（body キーがある時）だけ本文を字下げ表示"""
+    if "body" not in mail:
+        return
+    for line in (mail["body"] or "").splitlines():
+        click.echo(f"    {line}")
+    click.echo()
+
+
 @click.group()
 def cli():
     """Outlook CLI ツール"""
@@ -35,28 +44,31 @@ def cli():
 @cli.command()
 @click.option("--folder", default="inbox", help="フォルダ名 (inbox/sent/drafts)")
 @click.option("--limit", default=20, help="取得件数")
+@click.option("--with-body", is_flag=True, help="本文全文を含める")
 @click.option("--json-output", is_flag=True, help="JSON出力")
-def list(folder, limit, json_output):
+def list(folder, limit, with_body, json_output):
     """メール一覧表示"""
     client = get_client()
-    mails = client.list_mails(folder=folder, limit=limit)
+    mails = client.list_mails(folder=folder, limit=limit, include_body=with_body)
     if json_output:
         click.echo(json.dumps(mails, ensure_ascii=False, indent=2))
     else:
         for m in mails:
             unread = "★" if m.get("unread") else "　"
             click.echo(f"{unread} [{m['id']}] {m['date'][:10]}  {m['from']:<30}  {m['subject']}")
+            _echo_body(m)
 
 
 @cli.command()
 @click.argument("keyword")
 @click.option("--days", default=7, help="検索対象の日数")
 @click.option("--from", "sender", default=None, help="送信者フィルタ")
+@click.option("--with-body", is_flag=True, help="本文全文を含める")
 @click.option("--json-output", is_flag=True, help="JSON出力")
-def search(keyword, days, sender, json_output):
+def search(keyword, days, sender, with_body, json_output):
     """メール検索"""
     client = get_client()
-    mails = client.search(keyword=keyword, days=days, sender=sender)
+    mails = client.search(keyword=keyword, days=days, sender=sender, include_body=with_body)
     if json_output:
         click.echo(json.dumps(mails, ensure_ascii=False, indent=2))
     else:
@@ -65,6 +77,7 @@ def search(keyword, days, sender, json_output):
             return
         for m in mails:
             click.echo(f"[{m['id']}] {m['date'][:10]}  {m['from']:<30}  {m['subject']}")
+            _echo_body(m)
 
 
 @cli.command()

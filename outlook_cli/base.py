@@ -5,13 +5,13 @@ from datetime import datetime
 class OutlookBase(ABC):
 
     @abstractmethod
-    def list_mails(self, folder: str = "inbox", limit: int = 20) -> list:
-        """メール一覧取得"""
+    def list_mails(self, folder: str = "inbox", limit: int = 20, include_body: bool = False) -> list:
+        """メール一覧取得（include_body=True で本文全文を "body" に含める）"""
         ...
 
     @abstractmethod
-    def search(self, keyword: str, days: int = 7, sender: str = None) -> list:
-        """メール検索"""
+    def search(self, keyword: str, days: int = 7, sender: str = None, include_body: bool = False) -> list:
+        """メール検索（include_body=True で本文全文を "body" に含める）"""
         ...
 
     @abstractmethod

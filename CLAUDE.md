@@ -86,8 +86,8 @@ $env:OUTLOOK_MOCK=1; .venv\Scripts\python.exe -m outlook_cli.tui
 
 | コマンド | 説明 | 主なオプション |
 |---|---|---|
-| `list` | メール一覧 | `--folder` `--limit` `--json-output` |
-| `search <keyword>` | メール検索 | `--days` `--from` `--json-output` |
+| `list` | メール一覧 | `--folder` `--limit` `--with-body` `--json-output` |
+| `search <keyword>` | メール検索 | `--days` `--from` `--with-body` `--json-output` |
 | `read <mail_id>` | 本文表示 | `--json-output` |
 | `send` | メール送信 | `--to` `--subject` `--body` |
 | `reply <mail_id>` | 返信 | `--body` |
@@ -99,6 +99,8 @@ $env:OUTLOOK_MOCK=1; .venv\Scripts\python.exe -m outlook_cli.tui
 | `find-slot` | 複数人の空き時間候補 | `--attendees` `--duration` `--days` `--work-start` `--work-end` `--json-output` |
 
 上記コマンドはすべてMCPツールとしても公開されている（[MCPサーバー](#mcpサーバーoutlook-mcp)参照）。
+
+メール系の出力には `conversation_id` / `conversation_topic`（Re:/Fw: 除去済み件名）が付く。AI でスレッド整理させる時は `search --with-body --json-output` の JSON を渡す。
 
 ---
 

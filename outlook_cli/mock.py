@@ -1,4 +1,6 @@
+import hashlib
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -28,6 +30,28 @@ _MOCK_BUSY_SCHEDULE = {
     ],
 }
 
+# 件名先頭の Re: / Fw: / 返信: / 転送: 等（全角コロン・繰り返しにも対応）
+_SUBJECT_PREFIX = re.compile(r"^\s*(re|fw|fwd|返信|転送)\s*[:：]\s*", re.IGNORECASE)
+
+
+def _conversation_topic(subject: str) -> str:
+    """Outlook の ConversationTopic 相当（件名から返信・転送の接頭辞を除去）"""
+    prev = None
+    while prev != subject:
+        prev = subject
+        subject = _SUBJECT_PREFIX.sub("", subject)
+    return subject.strip()
+
+
+def _with_conversation(mail: dict, include_body: bool = True) -> dict:
+    """スレッド整理用フィールドを付与したコピーを返す"""
+    topic = _conversation_topic(mail.get("subject", ""))
+    result = {k: v for k, v in mail.items() if include_body or k != "body"}
+    result["conversation_topic"] = topic
+    result["conversation_id"] = "conv-" + hashlib.md5(topic.encode("utf-8")).hexdigest()[:12]
+    return result
+
+
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data.json"
 
 
@@ -42,11 +66,11 @@ class OutlookMock(OutlookBase):
             return self._data.get(folder, [])
         return self._data.get("folders", {}).get(folder, [])
 
-    def list_mails(self, folder: str = "inbox", limit: int = 20) -> list:
+    def list_mails(self, folder: str = "inbox", limit: int = 20, include_body: bool = False) -> list:
         mails = sorted(self._get_folder_mails(folder), key=lambda m: m["date"], reverse=True)
-        return [{k: v for k, v in m.items() if k != "body"} for m in mails[:limit]]
+        return [_with_conversation(m, include_body) for m in mails[:limit]]
 
-    def search(self, keyword: str, days: int = 7, sender: str = None) -> list:
+    def search(self, keyword: str, days: int = 7, sender: str = None, include_body: bool = False) -> list:
         cutoff = datetime.now() - timedelta(days=days)
         keyword_lower = keyword.lower()
         result = []
@@ -61,7 +85,7 @@ class OutlookMock(OutlookBase):
             if sender and sender.lower() not in mail.get("from", "").lower():
                 continue
             if keyword_lower in mail.get("subject", "").lower() or keyword_lower in mail.get("body", "").lower():
-                result.append({k: v for k, v in mail.items() if k != "body"})
+                result.append(_with_conversation(mail, include_body))
         return sorted(result, key=lambda m: m["date"], reverse=True)
 
     def read(self, mail_id: str) -> dict:
@@ -74,7 +98,7 @@ class OutlookMock(OutlookBase):
         )
         for mail in all_mails:
             if mail["id"] == mail_id:
-                return mail
+                return _with_conversation(mail)
         raise ValueError(f"メールが見つかりません: {mail_id}")
 
     def send(self, to: str, subject: str, body: str) -> None:

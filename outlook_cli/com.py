@@ -42,12 +42,14 @@ class OutlookCOM(OutlookBase):
             "date":      mail.ReceivedTime.strftime("%Y-%m-%dT%H:%M:%S"),
             "unread":          mail.UnRead,
             "has_attachments": mail.Attachments.Count > 0,
+            "conversation_id":    getattr(mail, "ConversationID", "") or "",
+            "conversation_topic": getattr(mail, "ConversationTopic", "") or mail.Subject,
         }
         if include_body:
             result["body"] = mail.Body
         return result
 
-    def list_mails(self, folder: str = "inbox", limit: int = 20) -> list:
+    def list_mails(self, folder: str = "inbox", limit: int = 20, include_body: bool = False) -> list:
         items = self._get_folder(folder).Items
         items.Sort("[ReceivedTime]", True)
         result = []
@@ -55,12 +57,12 @@ class OutlookCOM(OutlookBase):
             if i >= limit:
                 break
             try:
-                result.append(self._mail_to_dict(mail))
+                result.append(self._mail_to_dict(mail, include_body=include_body))
             except Exception:
                 continue
         return result
 
-    def search(self, keyword: str, days: int = 7, sender: str = None) -> list:
+    def search(self, keyword: str, days: int = 7, sender: str = None, include_body: bool = False) -> list:
         cutoff = (datetime.now() - timedelta(days=days)).strftime("%m/%d/%Y")
         folder = self._get_folder("inbox")
         items = folder.Items
@@ -73,7 +75,7 @@ class OutlookCOM(OutlookBase):
         for mail in restricted:
             try:
                 if keyword_lower in mail.Subject.lower() or keyword_lower in mail.Body.lower():
-                    result.append(self._mail_to_dict(mail))
+                    result.append(self._mail_to_dict(mail, include_body=include_body))
             except Exception:
                 continue
         return sorted(result, key=lambda m: m["date"], reverse=True)
