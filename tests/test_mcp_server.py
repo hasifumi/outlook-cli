@@ -25,7 +25,7 @@ class TestListTool:
 
         result = mcp_server.list_mails_tool(folder="inbox", limit=5)
 
-        client.list_mails.assert_called_once_with(folder="inbox", limit=5)
+        client.list_mails.assert_called_once_with(folder="inbox", limit=5, include_body=False)
         assert result == [{"id": "1", "subject": "test"}]
 
     @patch("outlook_cli.mcp_server.get_client")
@@ -36,7 +36,17 @@ class TestListTool:
 
         mcp_server.list_mails_tool()
 
-        client.list_mails.assert_called_once_with(folder="inbox", limit=20)
+        client.list_mails.assert_called_once_with(folder="inbox", limit=20, include_body=False)
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_passes_include_body(self, mock_get_client):
+        client = MagicMock()
+        client.list_mails.return_value = []
+        mock_get_client.return_value = client
+
+        mcp_server.list_mails_tool(include_body=True)
+
+        client.list_mails.assert_called_once_with(folder="inbox", limit=20, include_body=True)
 
 
 class TestSearchTool:
@@ -48,7 +58,7 @@ class TestSearchTool:
 
         result = mcp_server.search(keyword="foo", days=3, sender="a@b.com")
 
-        client.search.assert_called_once_with(keyword="foo", days=3, sender="a@b.com")
+        client.search.assert_called_once_with(keyword="foo", days=3, sender="a@b.com", include_body=False)
         assert result == [{"id": "1", "subject": "hit"}]
 
     @patch("outlook_cli.mcp_server.get_client")
@@ -59,7 +69,17 @@ class TestSearchTool:
 
         mcp_server.search(keyword="foo")
 
-        client.search.assert_called_once_with(keyword="foo", days=7, sender=None)
+        client.search.assert_called_once_with(keyword="foo", days=7, sender=None, include_body=False)
+
+    @patch("outlook_cli.mcp_server.get_client")
+    def test_passes_include_body(self, mock_get_client):
+        client = MagicMock()
+        client.search.return_value = []
+        mock_get_client.return_value = client
+
+        mcp_server.search(keyword="foo", include_body=True)
+
+        client.search.assert_called_once_with(keyword="foo", days=7, sender=None, include_body=True)
 
 
 class TestReadTool:
