@@ -1,3 +1,4 @@
+import os
 import sys
 from datetime import datetime, timedelta
 
@@ -109,18 +110,57 @@ class OutlookCOM(OutlookBase):
         mail = self.namespace.GetItemFromID(mail_id)
         return self._mail_to_dict(mail, include_body=True)
 
-    def send(self, to: str, subject: str, body: str) -> None:
+    @staticmethod
+    def _attach_files(item, attachments) -> None:
+        for path in attachments or []:
+            item.Attachments.Add(path)
+
+    def send(self, to: str, subject: str, body: str, cc: str = "",
+             attachments: list[str] | None = None) -> None:
         mail = self.outlook.CreateItem(0)
         mail.To = to
+        mail.CC = cc
         mail.Subject = subject
         mail.Body = body
+        self._attach_files(mail, attachments)
         mail.Send()
 
-    def reply(self, mail_id: str, body: str) -> None:
+    def reply(self, mail_id: str, body: str, reply_all: bool = False,
+              attachments: list[str] | None = None) -> None:
         original = self.namespace.GetItemFromID(mail_id)
-        reply = original.Reply()
+        reply = original.ReplyAll() if reply_all else original.Reply()
         reply.Body = body + "\n\n" + reply.Body
+        self._attach_files(reply, attachments)
         reply.Send()
+
+    def forward(self, mail_id: str, to: str, body: str = "",
+                attachments: list[str] | None = None) -> None:
+        original = self.namespace.GetItemFromID(mail_id)
+        fwd = original.Forward()      # 元メールの添付は引き継がれる
+        fwd.To = to
+        fwd.Body = body + "\n\n" + fwd.Body
+        self._attach_files(fwd, attachments)
+        fwd.Send()
+
+    def save_draft(self, to: str, subject: str, body: str, cc: str = "",
+                   attachments: list[str] | None = None) -> str:
+        mail = self.outlook.CreateItem(0)
+        mail.To = to
+        mail.CC = cc
+        mail.Subject = subject
+        mail.Body = body
+        self._attach_files(mail, attachments)
+        mail.Save()
+        return mail.EntryID
+
+    def open_mail(self, mail_id: str | None = None) -> None:
+        if mail_id:
+            self.namespace.GetItemFromID(mail_id).Display()
+        else:
+            self.namespace.GetDefaultFolder(6).Display()
+
+    def open_mail_attachment(self, mail_id: str, filename: str) -> None:
+        os.startfile(self.save_mail_attachment_to_temp(mail_id, filename))
 
     def _walk_folders(self, folder, prefix: str = "") -> list[str]:
         paths = []

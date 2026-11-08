@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -64,6 +65,9 @@ class OutlookMock(OutlookBase):
     def __init__(self):
         with open(MOCK_DATA_PATH, encoding="utf-8") as f:
             self._data = json.load(f)
+        # Outlook 本体を開く操作はモックでは実行できないので、呼び出し履歴だけ記録する
+        self.opened_mail: list = []
+        self.opened_mail_attachments: list = []
 
     def _get_folder_mails(self, folder: str) -> list:
         if folder in ("inbox", "sent", "drafts", "outbox", "trash"):
@@ -106,27 +110,61 @@ class OutlookMock(OutlookBase):
                 return _with_conversation(mail)
         raise ValueError(f"メールが見つかりません: {mail_id}")
 
-    def send(self, to: str, subject: str, body: str) -> None:
-        mail = {
-            "id": f"mock-s{len(self._data.get('sent', [])) + 1:02d}",
+    def _new_mail(self, mail_id: str, to: str, subject: str, body: str, cc: str,
+                  attachments: list[str] | None) -> dict:
+        # 実際の Outlook に合わせ、添付はパスではなくファイル名で持つ
+        names = [os.path.basename(p) for p in (attachments or [])]
+        return {
+            "id": mail_id,
             "subject": subject,
             "from": "you@company.com",
             "from_name": "自分",
             "to": to,
-            "cc": "",
+            "cc": cc,
             "date": datetime.now().isoformat(),
             "unread": False,
             "body": body,
+            "attachments": names,
+            "has_attachments": bool(names),
         }
-        self._data.setdefault("sent", []).append(mail)
 
-    def reply(self, mail_id: str, body: str) -> None:
+    def send(self, to: str, subject: str, body: str, cc: str = "",
+             attachments: list[str] | None = None) -> None:
+        mail_id = f"mock-s{len(self._data.get('sent', [])) + 1:02d}"
+        self._data.setdefault("sent", []).append(
+            self._new_mail(mail_id, to, subject, body, cc, attachments))
+
+    def reply(self, mail_id: str, body: str, reply_all: bool = False,
+              attachments: list[str] | None = None) -> None:
         original = self.read(mail_id)
         self.send(
             to=original["from"],
             subject=f"Re: {original['subject']}",
             body=body,
+            cc=original.get("cc", "") if reply_all else "",
+            attachments=attachments,
         )
+
+    def forward(self, mail_id: str, to: str, body: str = "",
+                attachments: list[str] | None = None) -> None:
+        original = self.read(mail_id)
+        # 実際の Outlook の Forward() は元メールの添付も引き継ぐ
+        combined = list(original.get("attachments", [])) + list(attachments or [])
+        self.send(to=to, subject=f"Fwd: {original['subject']}", body=body,
+                  attachments=combined or None)
+
+    def save_draft(self, to: str, subject: str, body: str, cc: str = "",
+                   attachments: list[str] | None = None) -> str:
+        draft_id = f"mock-d{len(self._data.get('drafts', [])) + 1:02d}"
+        self._data.setdefault("drafts", []).append(
+            self._new_mail(draft_id, to, subject, body, cc, attachments))
+        return draft_id
+
+    def open_mail(self, mail_id: str | None = None) -> None:
+        self.opened_mail.append(mail_id)
+
+    def open_mail_attachment(self, mail_id: str, filename: str) -> None:
+        self.opened_mail_attachments.append((mail_id, filename))
 
     def list_subfolders(self, recursive: bool = False) -> list[str]:
         # モックのフォルダは 1 階層（キー名がそのままパス）なので recursive でも同じ

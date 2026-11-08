@@ -20,13 +20,37 @@ class OutlookBase(ABC):
         ...
 
     @abstractmethod
-    def send(self, to: str, subject: str, body: str) -> None:
-        """メール送信"""
+    def send(self, to: str, subject: str, body: str, cc: str = "",
+             attachments: list[str] | None = None) -> None:
+        """メール送信（attachments は添付するファイルの絶対パスのリスト）"""
         ...
 
     @abstractmethod
-    def reply(self, mail_id: str, body: str) -> None:
-        """メール返信"""
+    def reply(self, mail_id: str, body: str, reply_all: bool = False,
+              attachments: list[str] | None = None) -> None:
+        """メール返信（reply_all=True で全員に返信）"""
+        ...
+
+    @abstractmethod
+    def forward(self, mail_id: str, to: str, body: str = "",
+                attachments: list[str] | None = None) -> None:
+        """メール転送（元メールの添付ファイルも引き継ぐ）。メールが無ければ ValueError"""
+        ...
+
+    @abstractmethod
+    def save_draft(self, to: str, subject: str, body: str, cc: str = "",
+                   attachments: list[str] | None = None) -> str:
+        """送信せず下書きフォルダに保存し、下書きのメール ID を返す"""
+        ...
+
+    @abstractmethod
+    def open_mail(self, mail_id: str | None = None) -> None:
+        """Outlook 本体でメールを開く（mail_id 省略時は受信トレイ）"""
+        ...
+
+    @abstractmethod
+    def open_mail_attachment(self, mail_id: str, filename: str) -> None:
+        """メールの添付ファイルを一時フォルダに保存して、関連付けられたアプリで開く"""
         ...
 
     @abstractmethod

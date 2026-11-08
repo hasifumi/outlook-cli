@@ -98,25 +98,76 @@ def read(mail_id, json_output):
         click.echo(mail["body"])
 
 
+# 添付するファイル。存在しないパスは送信前に弾く（COM に渡すため絶対パスにする）
+attach_option = click.option(
+    "--attach", "attach", multiple=True,
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+    help="添付ファイル（複数指定可）",
+)
+
+
 @cli.command()
 @click.option("--to", required=True, help="宛先メールアドレス")
 @click.option("--subject", required=True, help="件名")
 @click.option("--body", required=True, help="本文")
-def send(to, subject, body):
+@click.option("--cc", default="", help="Cc（セミコロン区切り）")
+@attach_option
+def send(to, subject, body, cc, attach):
     """メール送信"""
     client = get_client()
-    client.send(to=to, subject=subject, body=body)
+    client.send(to=to, subject=subject, body=body, cc=cc, attachments=[*attach] or None)
     click.echo("送信しました")
 
 
 @cli.command()
 @click.argument("mail_id")
 @click.option("--body", required=True, help="返信本文")
-def reply(mail_id, body):
+@click.option("--all", "reply_all", is_flag=True, help="全員に返信")
+@attach_option
+def reply(mail_id, body, reply_all, attach):
     """メール返信"""
     client = get_client()
-    client.reply(mail_id=mail_id, body=body)
+    client.reply(mail_id=mail_id, body=body, reply_all=reply_all, attachments=[*attach] or None)
     click.echo("返信しました")
+
+
+@cli.command()
+@click.argument("mail_id")
+@click.option("--to", required=True, help="転送先メールアドレス")
+@click.option("--body", default="", help="転送時に添える本文")
+@attach_option
+def forward(mail_id, to, body, attach):
+    """メール転送（元メールの添付も引き継ぐ）"""
+    client = get_client()
+    try:
+        client.forward(mail_id=mail_id, to=to, body=body, attachments=[*attach] or None)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    click.echo("転送しました")
+
+
+@cli.command()
+@click.option("--to", required=True, help="宛先メールアドレス")
+@click.option("--subject", required=True, help="件名")
+@click.option("--body", required=True, help="本文")
+@click.option("--cc", default="", help="Cc（セミコロン区切り）")
+@attach_option
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def draft(to, subject, body, cc, attach, json_output):
+    """送信せずに下書きフォルダへ保存"""
+    client = get_client()
+    draft_id = client.save_draft(to=to, subject=subject, body=body, cc=cc, attachments=[*attach] or None)
+    if json_output:
+        click.echo(json.dumps({"id": draft_id}, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"下書きに保存しました: {draft_id}")
+
+
+@cli.command("open")
+@click.argument("mail_id", required=False)
+def open_cmd(mail_id):
+    """Outlook 本体でメールを開く（ID 省略時は受信トレイ）"""
+    get_client().open_mail(mail_id=mail_id)
 
 
 @cli.command()
