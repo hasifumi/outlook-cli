@@ -403,16 +403,23 @@ def cal():
     pass
 
 
+mailbox_option = click.option(
+    "--mailbox", default=None,
+    help="他の人の予定表を見る（メールアドレス。相手が共有している場合のみ）",
+)
+
+
 @cal.command("today")
 @click.option("--date", default=None, help="対象日 YYYY-MM-DD（省略=今日）")
+@mailbox_option
 @click.option("--json-output", is_flag=True, help="JSON出力")
-def cal_today(date, json_output):
+def cal_today(date, mailbox, json_output):
     """今日の予定一覧"""
     client = get_client()
     target = datetime.fromisoformat(date).date() if date else datetime.now().date()
     start = datetime(target.year, target.month, target.day)
     end = start + timedelta(days=1)
-    appts = client.get_calendar(start, end)
+    appts = client.get_calendar(start, end, mailbox=mailbox)
     if json_output:
         click.echo(json.dumps(appts, ensure_ascii=False, indent=2))
         return
@@ -428,15 +435,16 @@ def cal_today(date, json_output):
 
 @cal.command("week")
 @click.option("--date", default=None, help="週内の任意日 YYYY-MM-DD（省略=今週）")
+@mailbox_option
 @click.option("--json-output", is_flag=True, help="JSON出力")
-def cal_week(date, json_output):
+def cal_week(date, mailbox, json_output):
     """今週（月〜金）の予定一覧"""
     client = get_client()
     base = datetime.fromisoformat(date).date() if date else datetime.now().date()
     monday = base - timedelta(days=base.weekday())
     start = datetime(monday.year, monday.month, monday.day)
     end = start + timedelta(days=5)
-    appts = client.get_calendar(start, end)
+    appts = client.get_calendar(start, end, mailbox=mailbox)
     if json_output:
         click.echo(json.dumps(appts, ensure_ascii=False, indent=2))
         return
@@ -461,6 +469,122 @@ def cal_week(date, json_output):
 def cal_range():
     """(未実装) 任意期間の予定"""
     raise click.ClickException("cal range は未実装です")
+
+
+DATETIME_TYPE = click.DateTime(formats=[
+    "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S",
+])
+BUSY_STATUS_HELP = "0=空き 1=仮 2=予定あり 3=外出中 4=他の場所"
+
+
+@cal.command("create")
+@click.option("--subject", required=True, help="件名")
+@click.option("--start", "start", required=True, type=DATETIME_TYPE, help="開始 YYYY-MM-DDTHH:MM")
+@click.option("--end", "end", required=True, type=DATETIME_TYPE, help="終了 YYYY-MM-DDTHH:MM")
+@click.option("--attendee", "attendees", multiple=True,
+              help="出席者のメールアドレス（複数指定可）。指定すると会議招集メールが送信される")
+@click.option("--location", default="", help="場所")
+@click.option("--body", default="", help="本文")
+@click.option("--busy-status", type=click.IntRange(0, 4), default=2, help=BUSY_STATUS_HELP)
+@click.option("--reminder", "reminder_minutes", type=int, default=15,
+              help="何分前に通知するか（負の値で通知なし）")
+@click.option("--category", default="", help="カテゴリ名（`categories` で一覧）")
+@attach_option
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def cal_create(subject, start, end, attendees, location, body, busy_status,
+               reminder_minutes, category, attach, json_output):
+    """予定を作成（--attendee を付けると出席者に招集メールが送信される）"""
+    if end <= start:
+        raise click.UsageError("--end は --start より後にしてください")
+    client = get_client()
+    event_id = client.create_event(
+        subject=subject, start=start, end=end, attendees=[*attendees] or None,
+        location=location, body=body, busy_status=busy_status,
+        reminder_minutes=reminder_minutes, category=category, attachments=[*attach] or None,
+    )
+    if json_output:
+        click.echo(json.dumps({"id": event_id}, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"予定を作成しました: {event_id}")
+
+
+@cal.command("update")
+@click.argument("event_id")
+@click.option("--subject", default=None, help="件名")
+@click.option("--start", "start", default=None, type=DATETIME_TYPE,
+              help="開始 YYYY-MM-DDTHH:MM（--end 省略時は元の長さを保つ）")
+@click.option("--end", "end", default=None, type=DATETIME_TYPE, help="終了 YYYY-MM-DDTHH:MM")
+@click.option("--attendee", "attendees", multiple=True,
+              help="出席者を置き換えて更新通知を送る。省略すると出席者は変更せず通知も送らない")
+@click.option("--location", default=None, help="場所")
+@click.option("--body", default=None, help="本文")
+@click.option("--busy-status", type=click.IntRange(0, 4), default=None, help=BUSY_STATUS_HELP)
+@click.option("--reminder", "reminder_minutes", type=int, default=None,
+              help="何分前に通知するか（負の値で通知なし）")
+@click.option("--category", default=None, help="カテゴリ名")
+@attach_option
+def cal_update(event_id, subject, start, end, attendees, location, body, busy_status,
+               reminder_minutes, category, attach):
+    """予定を更新（指定した項目だけを変更し、ほかは今の値のまま）"""
+    client = get_client()
+    try:
+        current = client.get_event(event_id)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    cur_start = datetime.fromisoformat(current["start"])
+    cur_end = datetime.fromisoformat(current["end"])
+    new_start = start or cur_start
+    if end:
+        new_end = end
+    elif start:
+        new_end = start + (cur_end - cur_start)    # 開始だけ動かしたら長さを保つ
+    else:
+        new_end = cur_end
+    if new_end <= new_start:
+        raise click.UsageError("終了は開始より後にしてください")
+    try:
+        client.update_event(
+            event_id=event_id,
+            subject=current["subject"] if subject is None else subject,
+            start=new_start, end=new_end,
+            attendees=[*attendees] or None,
+            location=current["location"] if location is None else location,
+            body=current["body"] if body is None else body,
+            busy_status=current["busy_status"] if busy_status is None else busy_status,
+            reminder_minutes=current["reminder_minutes"] if reminder_minutes is None else reminder_minutes,
+            category=current["category"] if category is None else category,
+            attachments=[*attach] or None,
+        )
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    click.echo("予定を更新しました")
+
+
+@cal.command("delete")
+@click.argument("event_id")
+@click.option("--yes", is_flag=True, help="削除を実行する（出席者がいる会議では取り消し通知が送られる）")
+def cal_delete(event_id, yes):
+    """予定を削除"""
+    if not yes:
+        raise click.UsageError("予定を削除します。実行するには --yes を付けてください")
+    client = get_client()
+    try:
+        client.delete_event(event_id)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    click.echo("予定を削除しました")
+
+
+@cli.command()
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def categories(json_output):
+    """使えるカテゴリ名の一覧"""
+    names = get_client().get_categories()
+    if json_output:
+        click.echo(json.dumps(names, ensure_ascii=False, indent=2))
+        return
+    for name in names:
+        click.echo(name)
 
 
 @cli.command("find-slot")

@@ -112,8 +112,56 @@ class OutlookBase(ABC):
         ...
 
     @abstractmethod
-    def get_calendar(self, start: datetime, end: datetime) -> list:
-        """期間内の予定一覧 → [{"id", "subject", "start", "end", "location", "organizer", "attendees", "all_day", "busy_status"}, ...]"""
+    def get_calendar(self, start: datetime, end: datetime, mailbox: str | None = None) -> list:
+        """期間内の予定一覧 → [{"id", "subject", "start", "end", "location", "organizer", "attendees",
+        "all_day", "busy_status", "body", "reminder_minutes", "category", "attachments"}, ...]
+        mailbox にメールアドレスを渡すと、その人が共有している予定表を読む"""
+        ...
+
+    @abstractmethod
+    def get_event(self, event_id: str) -> dict:
+        """予定 1 件を get_calendar と同じ形式で取得。無ければ ValueError"""
+        ...
+
+    @abstractmethod
+    def get_categories(self) -> list[str]:
+        """予定・メールに付けられるカテゴリ名の一覧"""
+        ...
+
+    @abstractmethod
+    def create_event(self, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> str:
+        """予定を作成して ID を返す。attendees があると会議招集メールが送信される。
+        busy_status: 0=空き 1=仮 2=予定あり 3=外出中 4=他の場所。reminder_minutes が None/負なら通知なし"""
+        ...
+
+    @abstractmethod
+    def update_event(self, event_id: str, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> None:
+        """予定を更新（件名・日時・場所・本文・カテゴリ・通知は渡した値で置き換え）。
+        attendees が None なら出席者は変更せず通知も送らない。指定すると置き換えて更新通知を送る。
+        attachments は追加のみ（既存の添付は残る）。予定が無ければ ValueError"""
+        ...
+
+    @abstractmethod
+    def delete_event(self, event_id: str) -> None:
+        """予定を削除（出席者がいる会議では取り消し通知が送られる）。予定が無ければ ValueError"""
+        ...
+
+    @abstractmethod
+    def open_in_outlook(self, event_id: str | None = None) -> None:
+        """Outlook 本体で予定を開く（event_id 省略時は予定表）"""
+        ...
+
+    @abstractmethod
+    def open_attachment(self, event_id: str, filename: str) -> None:
+        """予定の添付ファイルを一時フォルダに保存して、関連付けられたアプリで開く"""
         ...
 
     @abstractmethod

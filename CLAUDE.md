@@ -88,17 +88,45 @@ $env:OUTLOOK_MOCK=1; .venv\Scripts\python.exe -m outlook_cli.tui
 |---|---|---|
 | `list` | メール一覧 | `--folder` `--limit` `--with-body` `--json-output` |
 | `search <keyword>` | メール検索 | `--days` `--from` `--with-body` `--json-output` |
-| `read <mail_id>` | 本文表示 | `--json-output` |
-| `send` | メール送信 | `--to` `--subject` `--body` |
-| `reply <mail_id>` | 返信 | `--body` |
+| `read <mail_id>` | 本文表示（JSON は添付ファイル名 `attachments` 付き） | `--json-output` |
+| `send` | メール送信 | `--to` `--subject` `--body` `--cc` `--attach` |
+| `reply <mail_id>` | 返信 | `--body` `--all` `--attach` |
+| `forward <mail_id>` | 転送（元の添付も引き継ぐ） | `--to` `--body` `--attach` |
+| `draft` | 送信せず下書き保存 | `--to` `--subject` `--body` `--cc` `--attach` `--json-output` |
+| `attachments <mail_id>` | 添付ファイル名の一覧 | `--json-output` |
+| `save-attachment <mail_id> [FILE]` | 添付を保存（同名は連番、上書きしない） | `--dest` `--all` `--json-output` |
+| `move <mail_id>` | 別フォルダへ移動（移動後の ID を返す） | `--folder` `--json-output` |
+| `folders` | 受信トレイ配下のフォルダ一覧 | `--recursive` `--json-output` |
+| `open [mail_id]` | Outlook 本体で開く | |
 | `unread-count` | フォルダ別未読件数 | `--folder` `--json-output` |
 | `unread-summary` | 未読メール本文冒頭サマリー | `--folder` `--limit` `--json-output` |
 | `sent-today` | 当日の送信メール一覧 | `--date` `--json-output` |
-| `cal today` | 今日の予定一覧 | `--date` `--json-output` |
-| `cal week` | 今週（月〜金）の予定一覧 | `--date` `--json-output` |
+| `cal today` | 今日の予定一覧 | `--date` `--mailbox` `--json-output` |
+| `cal week` | 今週（月〜金）の予定一覧 | `--date` `--mailbox` `--json-output` |
+| `cal create` | 予定作成（`--attendee` で招集メール送信） | `--subject` `--start` `--end` `--attendee` `--location` `--body` `--busy-status` `--reminder` `--category` `--attach` |
+| `cal update <event_id>` | 予定更新（指定項目のみ。`--attendee` 省略時は出席者・通知に触れない） | `cal create` と同じ（任意） |
+| `cal delete <event_id>` | 予定削除 | `--yes`（必須） |
+| `categories` | カテゴリ名の一覧 | `--json-output` |
 | `find-slot` | 複数人の空き時間候補 | `--attendees` `--duration` `--days` `--work-start` `--work-end` `--json-output` |
 
-上記コマンドはすべてMCPツールとしても公開されている（[MCPサーバー](#mcpサーバーoutlook-mcp)参照）。
+MCPツールとして公開されているのは元の12コマンド（list/search/read/send/reply/unread_count/
+unread_summary/sent_today/flagged/cal_today/cal_week/find_slot）だけ。`attachments` 〜 `cal delete` の
+書き込み系は、MCPが認証なし（社内LAN前提）なので**意図的に公開していない**（[MCPサーバー](#mcpサーバーoutlook-mcp)参照）。
+
+### outlook-agent からの移植（2026-11）
+
+`outlook-agent` にだけあった Outlook 操作を移植した（作業ブランチ `port-agent-features`）。
+`attachments` / `save-attachment` / `move` / `folders` / `forward` / `draft` / `open` / `cal create|update|delete` /
+`categories` / `--mailbox` と、`send`・`reply` の `--cc` `--all` `--attach`。
+- 添付保存は agent の「temp に元の名前で書く」ではなく、保存先指定＋上書きしない連番（`_files.py`）。
+- `move_mail` は移動後の ID を返す（実 Outlook では移動で EntryID が変わることがある）。
+- 予定の `category_color`（Rich 色名への変換）は agent の TUI 表示専用なので移植していない。
+- `cal update` は `get_event` で今の値を読み、指定した項目だけ差し替える。`--attendee` を省略したら
+  出席者に触れず通知も送らない（実機の `RequiredAttendees` は表示名で、再設定すると解決に失敗しうるため）。
+- `tests/test_interface_parity.py` が、`OutlookCOM` の実装漏れ・引数名の食い違いを AST で検出する
+  （COM は Windows + Outlook が無いと import できないため）。
+- **COM 層の実機確認は未了**（会社PCで）: `save-attachment`（SaveAsFile の絶対パス・日本語名）、`move`（移動後の ID）、
+  `folders --recursive`、`forward`/`draft`/`send --attach`、`cal create|update|delete`、`--mailbox`（共有されていない相手のエラー）。
 
 メール系の出力には `conversation_id` / `conversation_topic`（Re:/Fw: 除去済み件名）が付く。AI でスレッド整理させる時は `search --with-body --json-output` の JSON を渡す。
 

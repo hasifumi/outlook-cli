@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from datetime import datetime, timedelta
 
 if sys.platform != "win32":
@@ -288,12 +289,20 @@ class OutlookCOM(OutlookBase):
         result["total"] = sum(v for k, v in result.items() if k != "total")
         return result
 
-    def _get_calendar_folder(self):
+    def _get_calendar_folder(self, mailbox: str | None = None):
+        if mailbox:
+            recipient = self.namespace.CreateRecipient(mailbox)
+            recipient.Resolve()
+            if not recipient.Resolved:
+                raise ValueError(f"予定表のユーザーが見つかりません: {mailbox}")
+            # 相手が予定表を共有（閲覧者以上）していないと、ここで COM エラーになる
+            return self.namespace.GetSharedDefaultFolder(recipient, 9)
         return self.namespace.GetDefaultFolder(9)
 
     def _appointment_to_dict(self, item) -> dict:
         start = item.Start
         end = item.End
+        categories_raw = item.Categories or ""
         return {
             "id":          item.EntryID,
             "subject":     item.Subject,
@@ -304,10 +313,102 @@ class OutlookCOM(OutlookBase):
             "attendees":   item.RequiredAttendees or "",
             "all_day":     item.AllDayEvent,
             "busy_status": item.BusyStatus,
+            "body":        item.Body or "",
+            "reminder_minutes": item.ReminderMinutesBeforeStart if item.ReminderSet else None,
+            "category":    categories_raw.split(";")[0].strip() if categories_raw else "",
+            "attachments": self._attachment_names(item),
         }
 
-    def get_calendar(self, start: datetime, end: datetime) -> list:
-        items = self._get_calendar_folder().Items
+    def get_event(self, event_id: str) -> dict:
+        try:
+            item = self.namespace.GetItemFromID(event_id)
+            return self._appointment_to_dict(item)
+        except Exception as e:
+            raise ValueError(f"予定が見つかりません: {event_id}") from e
+
+    def get_categories(self) -> list[str]:
+        try:
+            return [c.Name for c in self.namespace.Categories]
+        except Exception:
+            return []
+
+    def create_event(self, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> str:
+        appt = self.outlook.CreateItem(1)  # olAppointmentItem
+        appt.Subject = subject
+        appt.Start = start
+        appt.End = end
+        appt.Location = location
+        appt.Body = body
+        appt.BusyStatus = busy_status
+        appt.Categories = category
+        self._set_reminder(appt, reminder_minutes)
+        self._attach_files(appt, attachments)
+        if attendees:
+            appt.MeetingStatus = 1  # olMeeting
+            appt.RequiredAttendees = ";".join(attendees)
+            appt.Send()   # 出席者がいれば会議招集として送信される（保存も兼ねる）
+        else:
+            appt.Save()   # 自分だけの予定は保存のみ
+        return appt.EntryID
+
+    def update_event(self, event_id: str, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> None:
+        appt = self.namespace.GetItemFromID(event_id)
+        appt.Subject = subject
+        appt.Start = start
+        appt.End = end
+        appt.Location = location
+        appt.Body = body
+        appt.BusyStatus = busy_status
+        appt.Categories = category
+        self._set_reminder(appt, reminder_minutes)
+        self._attach_files(appt, attachments)
+        if attendees:
+            appt.MeetingStatus = 1  # olMeeting
+            appt.RequiredAttendees = ";".join(attendees)
+            appt.Send()   # 出席者への更新通知として再送信
+        else:
+            appt.Save()
+
+    @staticmethod
+    def _set_reminder(appt, reminder_minutes) -> None:
+        if reminder_minutes is not None and reminder_minutes >= 0:
+            appt.ReminderSet = True
+            appt.ReminderMinutesBeforeStart = reminder_minutes
+        else:
+            appt.ReminderSet = False
+
+    def delete_event(self, event_id: str) -> None:
+        # 出席者のいる会議では、Outlook の版によっては「取り消し通知を送りますか」という
+        # ダイアログが出て COM 呼び出しがブロックされることがある（会社 PC で要確認）
+        self.namespace.GetItemFromID(event_id).Delete()
+
+    def open_in_outlook(self, event_id: str | None = None) -> None:
+        if event_id:
+            self.namespace.GetItemFromID(event_id).Display()
+        else:
+            self.namespace.GetDefaultFolder(9).Display()
+
+    def open_attachment(self, event_id: str, filename: str) -> None:
+        appt = self.namespace.GetItemFromID(event_id)
+        for att in appt.Attachments:
+            if att.FileName == filename:
+                folder = Path(tempfile.mkdtemp(prefix="outlook_cli_"))
+                path = unique_path(folder, safe_filename(att.FileName))
+                att.SaveAsFile(str(path.resolve()))
+                os.startfile(str(path))
+                return
+        raise ValueError(f"添付ファイルが見つかりません: {filename}")
+
+    def get_calendar(self, start: datetime, end: datetime, mailbox: str | None = None) -> list:
+        items = self._get_calendar_folder(mailbox).Items
         items.IncludeRecurrences = True
         items.Sort("[Start]")
         start_str = start.strftime("%m/%d/%Y %I:%M %p")

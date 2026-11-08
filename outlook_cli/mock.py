@@ -59,6 +59,9 @@ def _with_conversation(mail: dict, include_body: bool = True) -> dict:
 
 MOCK_DATA_PATH = Path(__file__).parent.parent / "mock_data.json"
 
+# Outlook の新規メールボックスが既定で持つ 6 色カテゴリ（ロケールや版で多少異なる）
+_MOCK_CATEGORIES = ["赤カテゴリ", "オレンジカテゴリ", "黄カテゴリ", "緑カテゴリ", "青カテゴリ", "紫カテゴリ"]
+
 
 class OutlookMock(OutlookBase):
 
@@ -68,6 +71,8 @@ class OutlookMock(OutlookBase):
         # Outlook 本体を開く操作はモックでは実行できないので、呼び出し履歴だけ記録する
         self.opened_mail: list = []
         self.opened_mail_attachments: list = []
+        self.opened_in_outlook: list = []
+        self.opened_attachments: list = []
 
     def _get_folder_mails(self, folder: str) -> list:
         if folder in ("inbox", "sent", "drafts", "outbox", "trash"):
@@ -263,15 +268,131 @@ class OutlookMock(OutlookBase):
                 })
         return sorted(result, key=lambda m: m["date"], reverse=True)
 
-    def get_calendar(self, start: datetime, end: datetime) -> list:
+    @staticmethod
+    def _event_view(item: dict) -> dict:
+        """予定に body 等の既定値を補い、COM と同じ形（キー）で返す"""
+        return {
+            "body": "", "reminder_minutes": None, "category": "", "attachments": [],
+            **item,
+        }
+
+    def get_calendar(self, start: datetime, end: datetime, mailbox: str | None = None) -> list:
         start_iso = start.isoformat()[:19]
         end_iso = end.isoformat()[:19]
-        items = self._data.get("calendar", [])
+        if mailbox:
+            items = self._mock_calendar_for_mailbox(mailbox, start)
+        else:
+            items = self._data.get("calendar", [])
         result = [
-            item for item in items
+            self._event_view(item) for item in items
             if item["start"] < end_iso and item["end"] > start_iso
         ]
         return sorted(result, key=lambda x: x["start"])
+
+    def _mock_calendar_for_mailbox(self, mailbox: str, start: datetime) -> list[dict]:
+        """他人の予定表のダミー。空き状況スケジュール（_MOCK_BUSY_SCHEDULE）をその週の予定として生成する"""
+        schedule = _MOCK_BUSY_SCHEDULE.get(mailbox, [])
+        monday = start - timedelta(days=start.weekday())
+        monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+        items = []
+        for i, (weekday, sh, sm, dur_min, status) in enumerate(schedule):
+            ev_start = monday + timedelta(days=weekday, hours=sh, minutes=sm)
+            ev_end = ev_start + timedelta(minutes=dur_min)
+            items.append({
+                "id": f"shared-{mailbox}-{i}",
+                "subject": f"{mailbox}の予定",
+                "start": ev_start.isoformat()[:19],
+                "end": ev_end.isoformat()[:19],
+                "location": "",
+                "organizer": mailbox,
+                "attendees": "",
+                "all_day": dur_min >= 1440,
+                "busy_status": status,
+            })
+        return items
+
+    def get_event(self, event_id: str) -> dict:
+        for item in self._data.get("calendar", []):
+            if item["id"] == event_id:
+                return self._event_view(item)
+        raise ValueError(f"予定が見つかりません: {event_id}")
+
+    def get_categories(self) -> list[str]:
+        return list(_MOCK_CATEGORIES)
+
+    def _next_event_id(self) -> str:
+        used = [
+            int(e["id"].rsplit("-", 1)[1]) for e in self._data.get("calendar", [])
+            if e["id"].startswith("cal-mock-") and e["id"].rsplit("-", 1)[1].isdigit()
+        ]
+        return f"cal-mock-{max(used, default=0) + 1}"
+
+    @staticmethod
+    def _reminder(reminder_minutes):
+        return reminder_minutes if reminder_minutes is not None and reminder_minutes >= 0 else None
+
+    def create_event(self, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> str:
+        event_id = self._next_event_id()
+        self._data.setdefault("calendar", []).append({
+            "id": event_id,
+            "subject": subject,
+            "start": start.isoformat()[:19],
+            "end": end.isoformat()[:19],
+            "location": location,
+            "organizer": "自分",
+            "attendees": ";".join(attendees) if attendees else "",
+            "all_day": False,
+            "busy_status": busy_status,
+            "body": body,
+            "reminder_minutes": self._reminder(reminder_minutes),
+            "category": category,
+            "attachments": [os.path.basename(p) for p in (attachments or [])],
+        })
+        return event_id
+
+    def update_event(self, event_id: str, subject: str, start: datetime, end: datetime,
+                     attendees: list[str] | None = None, location: str = "",
+                     body: str = "", busy_status: int = 2,
+                     reminder_minutes: int | None = 15, category: str = "",
+                     attachments: list[str] | None = None) -> None:
+        for event in self._data.get("calendar", []):
+            if event["id"] != event_id:
+                continue
+            event.update({
+                "subject": subject,
+                "start": start.isoformat()[:19],
+                "end": end.isoformat()[:19],
+                "location": location,
+                "busy_status": busy_status,
+                "body": body,
+                "reminder_minutes": self._reminder(reminder_minutes),
+                "category": category,
+            })
+            if attendees:                                  # 実機と同じく None なら出席者は触らない
+                event["attendees"] = ";".join(attendees)
+            current = event.get("attachments", [])
+            added = [os.path.basename(p) for p in (attachments or [])]
+            event["attachments"] = current + [n for n in added if n not in current]
+            return
+        raise ValueError(f"予定が見つかりません: {event_id}")
+
+    def delete_event(self, event_id: str) -> None:
+        calendar = self._data.get("calendar", [])
+        for i, event in enumerate(calendar):
+            if event["id"] == event_id:
+                calendar.pop(i)
+                return
+        raise ValueError(f"予定が見つかりません: {event_id}")
+
+    def open_in_outlook(self, event_id: str | None = None) -> None:
+        self.opened_in_outlook.append(event_id)
+
+    def open_attachment(self, event_id: str, filename: str) -> None:
+        self.opened_attachments.append((event_id, filename))
 
     def get_freebusy(self, email: str, start: datetime, minutes: int = 30) -> str:
         schedule = _MOCK_BUSY_SCHEDULE.get(email)

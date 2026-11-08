@@ -51,9 +51,16 @@ outlook <コマンド> [オプション]
 |---|---|---|
 | `list` | メール一覧 | `--folder inbox/sent/drafts` `--limit 20` `--json-output` |
 | `search <keyword>` | メール検索 | `--days 7` `--from sender@example.com` `--json-output` |
-| `read <mail_id>` | 本文表示 | `--json-output` |
-| `send` | メール送信 | `--to` `--subject` `--body` |
-| `reply <mail_id>` | 返信 | `--body` |
+| `read <mail_id>` | 本文表示（JSON には添付ファイル名 `attachments` も入る） | `--json-output` |
+| `send` | メール送信 | `--to` `--subject` `--body` `--cc` `--attach FILE`（複数可） |
+| `reply <mail_id>` | 返信 | `--body` `--all`（全員に返信） `--attach FILE` |
+| `forward <mail_id>` | 転送（元メールの添付も引き継ぐ） | `--to` `--body` `--attach FILE` |
+| `draft` | 送信せず下書きフォルダへ保存（ID を返す） | `--to` `--subject` `--body` `--cc` `--attach FILE` `--json-output` |
+| `attachments <mail_id>` | 添付ファイル名の一覧 | `--json-output` |
+| `save-attachment <mail_id> [FILE]` | 添付を保存。同名は上書きせず `_1` `_2` と連番 | `--dest DIR`（必須） `--all` `--json-output` |
+| `move <mail_id>` | 別フォルダへ移動（移動後の ID を返す） | `--folder`（必須。`親/子` も可） `--json-output` |
+| `folders` | 受信トレイ配下のフォルダ一覧 | `--recursive` `--json-output` |
+| `open [mail_id]` | Outlook 本体で開く（省略時は受信トレイ） | |
 | `unread-count` | フォルダ別未読件数 | `--folder` `--json-output` |
 | `unread-summary` | 未読メール本文冒頭サマリー | `--folder` `--limit` `--json-output` |
 | `sent-today` | 当日の送信メール一覧 | `--date YYYY-MM-DD` `--json-output` |
@@ -63,8 +70,12 @@ outlook <コマンド> [オプション]
 
 | コマンド | 説明 | 主なオプション |
 |---|---|---|
-| `cal today` | 今日の予定一覧 | `--date YYYY-MM-DD` `--json-output` |
-| `cal week` | 今週（月〜金）の予定一覧 | `--date YYYY-MM-DD` `--json-output` |
+| `cal today` | 今日の予定一覧 | `--date YYYY-MM-DD` `--mailbox` `--json-output` |
+| `cal week` | 今週（月〜金）の予定一覧 | `--date YYYY-MM-DD` `--mailbox` `--json-output` |
+| `cal create` | 予定を作成。`--attendee` を付けると出席者に招集メールが送信される | `--subject` `--start` `--end`（`YYYY-MM-DDTHH:MM`） `--attendee`（複数可） `--location` `--body` `--busy-status` `--reminder` `--category` `--attach` `--json-output` |
+| `cal update <event_id>` | 予定を更新。指定した項目だけ変更。`--attendee` を省略すると出席者は変更せず通知も送らない | `cal create` と同じ（すべて任意） |
+| `cal delete <event_id>` | 予定を削除（出席者がいる会議では取り消し通知が送られる） | `--yes`（必須） |
+| `categories` | 使えるカテゴリ名の一覧 | `--json-output` |
 | `find-slot` | 複数人の空き時間候補（上位5件） | `--attendees "a@co.jp;b@co.jp"` `--duration 60` `--days 5` `--work-start 9` `--work-end 18` `--json-output` |
 
 ### 使用例
