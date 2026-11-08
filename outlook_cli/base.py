@@ -30,8 +30,26 @@ class OutlookBase(ABC):
         ...
 
     @abstractmethod
-    def list_subfolders(self) -> list[str]:
-        """サブフォルダ一覧取得"""
+    def save_mail_attachment(self, mail_id: str, filename: str, dest_dir: str) -> str:
+        """添付ファイルを dest_dir に保存して保存先パスを返す。
+        dest_dir は無ければ作成。同名ファイルがあれば上書きせず a_1.xlsx のように連番を付ける。
+        添付が無ければ ValueError"""
+        ...
+
+    def save_mail_attachment_to_temp(self, mail_id: str, filename: str) -> str:
+        """添付ファイルを一時フォルダに保存してパスを返す（開いて確認する用途）"""
+        import tempfile
+        return self.save_mail_attachment(mail_id, filename, tempfile.mkdtemp(prefix="outlook_cli_"))
+
+    @abstractmethod
+    def move_mail(self, mail_id: str, folder: str) -> str:
+        """メールを別フォルダへ移動し、移動後のメール ID を返す
+        （実 Outlook では移動で EntryID が変わることがある）。メールが無ければ ValueError"""
+        ...
+
+    @abstractmethod
+    def list_subfolders(self, recursive: bool = False) -> list[str]:
+        """サブフォルダ一覧取得（recursive=True で孫フォルダ以下も "親/子" 形式で含める）"""
         ...
 
     @abstractmethod

@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from ._files import safe_filename, unique_path
 from .base import OutlookBase
 
 # (weekday 0=Mon..4=Fri, start_hour, start_min, duration_min, busy_status)
@@ -46,7 +47,10 @@ def _conversation_topic(subject: str) -> str:
 def _with_conversation(mail: dict, include_body: bool = True) -> dict:
     """スレッド整理用フィールドを付与したコピーを返す"""
     topic = _conversation_topic(mail.get("subject", ""))
-    result = {k: v for k, v in mail.items() if include_body or k != "body"}
+    # 本文なしの一覧では添付ファイル名（"attachments"）も出さない（COM 側と揃える）
+    result = {k: v for k, v in mail.items() if include_body or k not in ("body", "attachments")}
+    if include_body:
+        result["attachments"] = list(mail.get("attachments", []))
     result["conversation_topic"] = topic
     result["conversation_id"] = "conv-" + hashlib.md5(topic.encode("utf-8")).hexdigest()[:12]
     return result
@@ -62,7 +66,7 @@ class OutlookMock(OutlookBase):
             self._data = json.load(f)
 
     def _get_folder_mails(self, folder: str) -> list:
-        if folder in ("inbox", "sent", "drafts", "trash"):
+        if folder in ("inbox", "sent", "drafts", "outbox", "trash"):
             return self._data.get(folder, [])
         return self._data.get("folders", {}).get(folder, [])
 
@@ -94,6 +98,7 @@ class OutlookMock(OutlookBase):
             + self._data.get("sent", [])
             + self._data.get("trash", [])
             + self._data.get("drafts", [])
+            + self._data.get("outbox", [])
             + sum(self._data.get("folders", {}).values(), [])
         )
         for mail in all_mails:
@@ -123,8 +128,42 @@ class OutlookMock(OutlookBase):
             body=body,
         )
 
-    def list_subfolders(self) -> list[str]:
+    def list_subfolders(self, recursive: bool = False) -> list[str]:
+        # モックのフォルダは 1 階層（キー名がそのままパス）なので recursive でも同じ
         return list(self._data.get("folders", {}).keys())
+
+    def save_mail_attachment(self, mail_id: str, filename: str, dest_dir: str) -> str:
+        """モックの添付には実体が無いため、目印の内容を持つダミーファイルを書き出す"""
+        mail = self.read(mail_id)
+        if filename not in mail.get("attachments", []):
+            raise ValueError(f"添付ファイルが見つかりません: {filename}")
+        dest = Path(dest_dir)
+        dest.mkdir(parents=True, exist_ok=True)
+        path = unique_path(dest, safe_filename(filename))
+        path.write_bytes(f"[mock attachment] {mail_id}: {filename}\n".encode("utf-8"))
+        return str(path)
+
+    def _pop_mail(self, mail_id: str):
+        for folder_key in ("inbox", "sent", "drafts", "outbox", "trash"):
+            mails = self._data.get(folder_key, [])
+            for i, m in enumerate(mails):
+                if m["id"] == mail_id:
+                    return mails.pop(i)
+        for mails in self._data.get("folders", {}).values():
+            for i, m in enumerate(mails):
+                if m["id"] == mail_id:
+                    return mails.pop(i)
+        return None
+
+    def move_mail(self, mail_id: str, folder: str) -> str:
+        mail = self._pop_mail(mail_id)
+        if mail is None:
+            raise ValueError(f"メールが見つかりません: {mail_id}")
+        if folder in ("inbox", "sent", "drafts", "outbox", "trash"):
+            self._data.setdefault(folder, []).append(mail)
+        else:
+            self._data.setdefault("folders", {}).setdefault(folder, []).append(mail)
+        return mail_id
 
     def get_contacts(self) -> list[dict]:
         return self._data.get("contacts", [])

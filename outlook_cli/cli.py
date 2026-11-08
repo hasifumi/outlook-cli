@@ -119,6 +119,92 @@ def reply(mail_id, body):
     click.echo("返信しました")
 
 
+@cli.command()
+@click.argument("mail_id")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def attachments(mail_id, json_output):
+    """メールの添付ファイル名を一覧表示"""
+    client = get_client()
+    try:
+        names = client.read(mail_id).get("attachments", [])
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    if json_output:
+        click.echo(json.dumps(names, ensure_ascii=False, indent=2))
+        return
+    if not names:
+        click.echo("添付ファイルなし")
+        return
+    for name in names:
+        click.echo(name)
+
+
+@cli.command("save-attachment")
+@click.argument("mail_id")
+@click.argument("filename", required=False)
+@click.option("--all", "save_all", is_flag=True, help="すべての添付ファイルを保存")
+@click.option("--dest", required=True, type=click.Path(file_okay=False), help="保存先フォルダ（無ければ作成）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def save_attachment(mail_id, filename, save_all, dest, json_output):
+    """添付ファイルを保存（同名ファイルは上書きせず _1, _2 と連番）"""
+    if filename and save_all:
+        raise click.UsageError("ファイル名と --all は同時に指定できません")
+    if not filename and not save_all:
+        raise click.UsageError("添付ファイル名か --all を指定してください")
+    client = get_client()
+    dest_abs = os.path.abspath(dest)
+    try:
+        targets = client.read(mail_id).get("attachments", []) if save_all else [filename]
+        saved = [
+            {"filename": name, "path": client.save_mail_attachment(mail_id, name, dest_abs)}
+            for name in targets
+        ]
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    if json_output:
+        click.echo(json.dumps(saved, ensure_ascii=False, indent=2))
+        return
+    if not saved:
+        click.echo("添付ファイルなし")
+        return
+    for s in saved:
+        click.echo(f"保存しました: {s['path']}")
+
+
+@cli.command()
+@click.argument("mail_id")
+@click.option("--folder", required=True, help="移動先フォルダ（inbox/sent/drafts/trash または受信トレイ配下の 親/子）")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def move(mail_id, folder, json_output):
+    """メールを別フォルダへ移動"""
+    client = get_client()
+    try:
+        new_id = client.move_mail(mail_id, folder)
+    except ValueError as e:
+        raise click.ClickException(str(e))
+    if json_output:
+        click.echo(json.dumps({"id": new_id, "folder": folder}, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"移動しました: {folder}")
+
+
+@cli.command()
+@click.option("--recursive", is_flag=True, help="孫フォルダ以下も 親/子 形式で含める")
+@click.option("--json-output", is_flag=True, help="JSON出力")
+def folders(recursive, json_output):
+    """受信トレイ配下のフォルダ一覧"""
+    client = get_client()
+    names = client.list_subfolders(recursive=recursive)
+    if json_output:
+        click.echo(json.dumps(names, ensure_ascii=False, indent=2))
+        return
+    if not names:
+        click.echo("サブフォルダなし")
+        return
+    for name in names:
+        click.echo(name)
+
+
 @cli.command("unread-count")
 @click.option("--folder", default=None, help="フォルダ名（省略時は全フォルダ）")
 @click.option("--json-output", is_flag=True, help="JSON出力")

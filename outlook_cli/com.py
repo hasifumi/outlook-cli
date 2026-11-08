@@ -6,12 +6,16 @@ if sys.platform != "win32":
 
 import win32com.client
 
+from pathlib import Path
+
+from ._files import safe_filename, unique_path
 from .base import OutlookBase
 
 FOLDER_IDS = {
     "inbox":  6,
     "sent":   5,
     "drafts": 16,
+    "outbox": 4,
     "trash":  3,
 }
 
@@ -25,11 +29,31 @@ class OutlookCOM(OutlookBase):
     def _get_folder(self, folder: str):
         if folder in FOLDER_IDS:
             return self.namespace.GetDefaultFolder(FOLDER_IDS[folder])
-        inbox = self.namespace.GetDefaultFolder(6)
-        for f in inbox.Folders:
-            if f.Name == folder:
-                return f
-        raise ValueError(f"フォルダが見つかりません: {folder}")
+        # 受信トレイ配下のフォルダ。"親/子" のように "/" で階層を指定できる
+        current = self.namespace.GetDefaultFolder(6)
+        for part in folder.split("/"):
+            found = None
+            for f in current.Folders:
+                if f.Name == part:
+                    found = f
+                    break
+            if found is None:
+                raise ValueError(f"フォルダが見つかりません: {folder}")
+            current = found
+        return current
+
+    @staticmethod
+    def _attachment_names(item) -> list:
+        names = []
+        try:
+            for att in item.Attachments:
+                try:
+                    names.append(att.FileName)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return names
 
     def _mail_to_dict(self, mail, include_body: bool = False) -> dict:
         result = {
@@ -47,6 +71,7 @@ class OutlookCOM(OutlookBase):
         }
         if include_body:
             result["body"] = mail.Body
+            result["attachments"] = self._attachment_names(mail)
         return result
 
     def list_mails(self, folder: str = "inbox", limit: int = 20, include_body: bool = False) -> list:
@@ -97,9 +122,36 @@ class OutlookCOM(OutlookBase):
         reply.Body = body + "\n\n" + reply.Body
         reply.Send()
 
-    def list_subfolders(self) -> list[str]:
+    def _walk_folders(self, folder, prefix: str = "") -> list[str]:
+        paths = []
+        for f in folder.Folders:
+            path = f"{prefix}{f.Name}"
+            paths.append(path)
+            paths.extend(self._walk_folders(f, prefix=f"{path}/"))
+        return paths
+
+    def list_subfolders(self, recursive: bool = False) -> list[str]:
         inbox = self.namespace.GetDefaultFolder(6)
+        if recursive:
+            return self._walk_folders(inbox)
         return [f.Name for f in inbox.Folders]
+
+    def save_mail_attachment(self, mail_id: str, filename: str, dest_dir: str) -> str:
+        mail = self.namespace.GetItemFromID(mail_id)
+        dest = Path(dest_dir)
+        dest.mkdir(parents=True, exist_ok=True)
+        for att in mail.Attachments:
+            if att.FileName == filename:
+                path = unique_path(dest, safe_filename(att.FileName))
+                att.SaveAsFile(str(path.resolve()))  # SaveAsFile は絶対パスが必要
+                return str(path)
+        raise ValueError(f"添付ファイルが見つかりません: {filename}")
+
+    def move_mail(self, mail_id: str, folder: str) -> str:
+        mail = self.namespace.GetItemFromID(mail_id)
+        moved = mail.Move(self._get_folder(folder))
+        # 移動後は EntryID が変わることがあるので、移動後の ID を返す
+        return getattr(moved, "EntryID", mail_id)
 
     def delete(self, mail_id: str) -> None:
         mail = self.namespace.GetItemFromID(mail_id)
