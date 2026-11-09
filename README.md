@@ -26,6 +26,8 @@ uv sync
 uv add pywin32
 ```
 
+使い方の練習は **[docs/tutorial.md](docs/tutorial.md)**（モックで練習する第1部と、会社 PC の実機確認表の第2部）。
+
 ### 環境切り替え
 
 ```powershell
@@ -179,7 +181,7 @@ daily_report（スタンドアロン）
 ```powershell
 # モック環境でテスト実行
 $env:OUTLOOK_MOCK = 1
-uv run pytest
+uv run pytest        # 約150件・数秒。実 Outlook（COM）の確認は docs/tutorial.md 第2部
 
 # CLI を直接実行（インストール不要）
 $env:OUTLOOK_MOCK = 1

@@ -54,6 +54,7 @@ outlook-cli/
 │   ├── base.py            ← OutlookBase 抽象クラス
 │   ├── mock.py            ← OutlookMock
 │   ├── com.py             ← OutlookCOM（win32com）
+│   ├── _files.py          ← 添付保存のファイル名処理（safe_filename / unique_path）
 │   ├── cli.py             ← Click エントリポイント
 │   ├── tui.py             ← Textual TUI
 │   └── mcp_server.py      ← MCPサーバー（Streamable HTTP, port 8764）
@@ -64,7 +65,12 @@ outlook-cli/
 │   └── report.py          ← Markdown保存・win10toast通知
 ├── scripts/
 │   └── daily_report.ps1   ← タスクスケジューラ用ラッパー
-└── tests/
+├── docs/
+│   └── tutorial.md        ← チュートリアル（第1部 モック練習／第2部 会社PC実機確認表）
+└── tests/                 ← 全部モックで動く（OUTLOOK_MOCK=1、約150件・数秒）
+    ├── test_attachments_move.py  test_send_family.py  test_drafts.py
+    ├── test_calendar_ops.py      test_full_body.py    test_mcp_server.py
+    ├── test_interface_parity.py  ← com.py の実装漏れ・引数名を AST で検査
     └── test_daily_report.py
 ```
 
@@ -115,7 +121,7 @@ unread_summary/sent_today/flagged/cal_today/cal_week/find_slot）だけ。`attac
 
 ### outlook-agent からの移植（2026-11）
 
-`outlook-agent` にだけあった Outlook 操作を移植した（作業ブランチ `port-agent-features`）。
+`outlook-agent` にだけあった Outlook 操作を移植した（作業ブランチ `port-agent-features` → 2026-11-09 に master へ取り込み済み）。
 `attachments` / `save-attachment` / `move` / `folders` / `forward` / `draft` / `open` / `cal create|update|delete` /
 `categories` / `--mailbox` と、`send`・`reply` の `--cc` `--all` `--attach`。
 - 添付保存は agent の「temp に元の名前で書く」ではなく、保存先指定＋上書きしない連番（`_files.py`）。
@@ -125,7 +131,8 @@ unread_summary/sent_today/flagged/cal_today/cal_week/find_slot）だけ。`attac
   出席者に触れず通知も送らない（実機の `RequiredAttendees` は表示名で、再設定すると解決に失敗しうるため）。
 - `tests/test_interface_parity.py` が、`OutlookCOM` の実装漏れ・引数名の食い違いを AST で検出する
   （COM は Windows + Outlook が無いと import できないため）。
-- **COM 層の実機確認は未了**（会社PCで）: `save-attachment`（SaveAsFile の絶対パス・日本語名）、`move`（移動後の ID）、
+- モックの挙動と練習手順は [docs/tutorial.md](docs/tutorial.md)（モックは実行ごとに初期化され、書き込みは残らない）。
+- **COM 層の実機確認は未了**（会社PCで。手順と結果欄は tutorial.md の第2部の表）: `save-attachment`（SaveAsFile の絶対パス・日本語名）、`move`（移動後の ID）、
   `folders --recursive`、`forward`/`draft`/`send --attach`、`cal create|update|delete`、`--mailbox`（共有されていない相手のエラー）。
 
 メール系の出力には `conversation_id` / `conversation_topic`（Re:/Fw: 除去済み件名）が付く。AI でスレッド整理させる時は `search --with-body --json-output` の JSON を渡す。
